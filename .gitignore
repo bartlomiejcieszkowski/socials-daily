@@ -1,0 +1,22 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Output
+output/
+
+# Seen posts tracker
+.seen.json
+
+# Config with API keys
+.socials_daily.config.json
+
+# Account list (personal data)
+accounts.txt

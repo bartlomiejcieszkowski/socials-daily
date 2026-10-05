@@ -1,0 +1,23 @@
+[project]
+name = "socials-daily"
+version = "0.1.0"
+description = "Daily summary scraper for multiple social networks"
+authors = [
+    { name = "Bartlomiej Cieszkowski", email = "bartlomiej.cieszkowski@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "atproto>=0.0.72",
+    "hikerapi>=1.8.2",
+    "instaloader>=4.15.3",
+]
+
+[project.optional-dependencies]
+xpoz = ["xpoz>=0.8.0"]
+
+[dependency-groups]
+dev = []
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
