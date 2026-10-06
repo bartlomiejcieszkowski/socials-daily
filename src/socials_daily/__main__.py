@@ -17,9 +17,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 log = logging.getLogger(__name__)
 
 OUTPUT_DIR = Path("output")
-ACCOUNTS_FILE = Path("accounts.txt")
+ACCOUNTS_FILE = Path("accounts.json")
 SEEN_FILE = Path(".seen.json")
 POSTS_LIMIT = 10  # recent posts per account
+
+SUPPORTED_PLATFORMS = ["bluesky", "instagram", "hikerapi", "xpoz"]
 
 
 def load_seen() -> set[str]:
@@ -34,29 +36,64 @@ def save_seen(seen: set[str]) -> None:
     SEEN_FILE.write_text(json.dumps(list(seen), indent=2, ensure_ascii=False), encoding="utf-8")
 
 
-def load_accounts(path: Path = ACCOUNTS_FILE) -> list[str]:
-    """Load account usernames from file, one per line, skipping blanks and comments."""
-    lines = path.read_text(encoding="utf-8").splitlines()
-    return [line.strip() for line in lines if line.strip() and not line.startswith("#")]
+def load_accounts(path: Path = ACCOUNTS_FILE) -> dict[str, list[dict]]:
+    """Load accounts grouped by platform.
+
+    Returns dict like:
+    {
+        "bluesky": [{"handle": "bsky.app", "limit": 10}],
+        "instagram": [{"handle": "natgeo"}]
+    }
+    """
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        # Legacy flat list — convert to platform-based
+        result: dict[str, list[dict]] = {}
+        for item in data:
+            if isinstance(item, dict):
+                platform = item.get("platform", "bluesky")
+            else:
+                platform = "bluesky"
+            result.setdefault(platform, []).append({"handle": str(item)})
+        return result
+    return data
 
 
-def add_account(username: str, platform: str, path: Path = ACCOUNTS_FILE) -> None:
-    """Append a username to the accounts file if not already present."""
-    existing = load_accounts(path)
-    clean = username.lstrip("@")
-    if clean in existing:
-        log.info("@%s already in %s", clean, path)
-        return
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(f"{clean}\n")
-    log.info("Added @%s (%s) to %s", clean, platform, path)
+def save_accounts(accounts: dict[str, list[dict]], path: Path = ACCOUNTS_FILE) -> None:
+    """Save accounts grouped by platform."""
+    path.write_text(json.dumps(accounts, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def generate_summary(accounts: list[str], backend: str, api_key: str | None, output_dir: Path = OUTPUT_DIR) -> Path:
-    """Fetch posts from all accounts and write a daily summary file."""
-    scraper = create_scraper(backend, api_key)
-    log.info("Using scraper: %s", scraper.name)
+def add_account(handle: str, platform: str, path: Path = ACCOUNTS_FILE, limit: int | None = None) -> None:
+    """Add an account to the accounts file under the specified platform."""
+    accounts = load_accounts(path)
+    clean = handle.lstrip("@")
 
+    if platform not in accounts:
+        accounts[platform] = []
+
+    for entry in accounts[platform]:
+        if entry.get("handle") == clean:
+            log.info("%s/%s already in %s", platform, clean, path)
+            return
+
+    entry: dict = {"handle": clean}
+    if limit is not None:
+        entry["limit"] = limit
+
+    accounts[platform].append(entry)
+    save_accounts(accounts, path)
+    log.info("Added %s/%s (limit=%s) to %s", platform, clean, limit or POSTS_LIMIT, path)
+
+
+def generate_summary(
+    accounts: dict[str, list[dict]],
+    api_key: str | None,
+    output_dir: Path = OUTPUT_DIR,
+) -> Path:
+    """Fetch posts from all accounts (grouped by platform) and write a daily summary."""
     seen = load_seen()
     output_dir.mkdir(parents=True, exist_ok=True)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -64,17 +101,42 @@ def generate_summary(accounts: list[str], backend: str, api_key: str | None, out
 
     all_posts: list[dict] = []
     by_account: dict[str, list[dict]] = defaultdict(list)
+    total_accounts = sum(len(v) for v in accounts.values())
+    index = 0
 
-    for i, username in enumerate(accounts):
-        log.info("[%d/%d] Fetching posts from @%s ...", i + 1, len(accounts), username)
-        posts = scraper.fetch_posts(username, limit=POSTS_LIMIT)
-        for post in posts:
-            if post.link not in seen:
-                seen.add(post.link)
-                all_posts.append({"account": username, "caption": post.caption, "link": post.link, "date": post.date.isoformat()})
-                by_account[username].append({"caption": post.caption, "link": post.link, "date": post.date.isoformat()})
-        # Pace between accounts (instaloader needs this, APIs don't but safe to keep)
-        time.sleep(3)
+    for platform, platform_accounts in accounts.items():
+        for account in platform_accounts:
+            handle = account["handle"]
+            limit = account.get("limit", POSTS_LIMIT)
+            index += 1
+
+            log.info("[%d/%d] Fetching posts from %s/%s ...", index, total_accounts, platform, handle)
+            scraper = create_scraper(platform, api_key)
+            log.info("  Using scraper: %s", scraper.name)
+
+            try:
+                posts = scraper.fetch_posts(handle, limit=limit)
+            except Exception as exc:
+                log.warning("  Failed to fetch from %s/%s: %s", platform, handle, exc)
+                posts = []
+
+            for post in posts:
+                if post.link not in seen:
+                    seen.add(post.link)
+                    all_posts.append({
+                        "platform": platform,
+                        "account": handle,
+                        "caption": post.caption,
+                        "link": post.link,
+                        "date": post.date.isoformat(),
+                    })
+                    by_account[f"{platform}/{handle}"].append({
+                        "caption": post.caption,
+                        "link": post.link,
+                        "date": post.date.isoformat(),
+                    })
+            # Pace between accounts (instaloader needs this, APIs don't but safe to keep)
+            time.sleep(3)
 
     # Write markdown summary
     lines: list[str] = []
@@ -84,8 +146,8 @@ def generate_summary(accounts: list[str], backend: str, api_key: str | None, out
     if not all_posts:
         lines.append("*No new posts today.*")
     else:
-        for account, account_posts in sorted(by_account.items()):
-            lines.append(f"## @{account}")
+        for account_key, account_posts in sorted(by_account.items()):
+            lines.append(f"## {account_key}")
             lines.append("")
             for post in account_posts:
                 caption = post["caption"]
@@ -102,7 +164,10 @@ def generate_summary(accounts: list[str], backend: str, api_key: str | None, out
     json_file.write_text(json.dumps(all_posts, indent=2, ensure_ascii=False), encoding="utf-8")
 
     save_seen(seen)
-    log.info("Summary written to %s (%d new posts from %d accounts, %d total tracked)", output_file, len(all_posts), len(by_account), len(seen))
+    log.info(
+        "Summary written to %s (%d new posts from %d accounts, %d total tracked)",
+        output_file, len(all_posts), len(by_account), len(seen),
+    )
     return output_file
 
 
@@ -112,18 +177,18 @@ def main() -> None:
 
     # scrape (default)
     scrape_parser = sub.add_parser("scrape", help="Fetch posts from all accounts")
-    scrape_parser.add_argument("--backend", choices=["bluesky", "instaloader", "hikerapi", "xpoz"], default="bluesky", help="Scraper backend (default: bluesky)")
     scrape_parser.add_argument("--api-key", default=None, help="API key for paid backends (or set env var)")
 
     # add
     add_parser = sub.add_parser("add", help="Add an account to the list")
-    add_parser.add_argument("username", help="Social handle (with or without @)")
-    add_parser.add_argument("--platform", choices=["bluesky", "instagram"], default="bluesky", help="Platform (default: bluesky)")
+    add_parser.add_argument("handle", help="Social handle (with or without @)")
+    add_parser.add_argument("--platform", choices=SUPPORTED_PLATFORMS, default="bluesky", help="Platform (default: bluesky)")
+    add_parser.add_argument("--limit", type=int, default=None, help="Post limit for this account (default: 10)")
 
     args = parser.parse_args()
 
     if args.command == "add":
-        add_account(args.username, platform=args.platform)
+        add_account(args.handle, platform=args.platform, limit=args.limit)
     else:
         # default: scrape
         accounts = load_accounts()
@@ -131,8 +196,13 @@ def main() -> None:
             log.error("No accounts found in %s", ACCOUNTS_FILE)
             sys.exit(1)
 
-        log.info("Scraping %d accounts...", len(accounts))
-        output = generate_summary(accounts, backend=args.backend, api_key=args.api_key)
+        platform_count = len(accounts)
+        total = sum(len(v) for v in accounts.values())
+        log.info("Found %d accounts across %d platforms", total, platform_count)
+        for platform, platform_accounts in accounts.items():
+            log.info("  %s: %d account(s)", platform, len(platform_accounts))
+
+        output = generate_summary(accounts, api_key=args.api_key)
         print(f"\nDone! Summary: {output}")
 
 

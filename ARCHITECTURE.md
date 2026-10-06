@@ -7,7 +7,7 @@ A Python tool that fetches recent posts from public social media accounts and ge
 ## Project Structure
 
 ```
-accounts.txt              # List of social handles (one per line)
+accounts.json             # Accounts grouped by platform
 pyproject.toml            # uv project config
 src/socials_daily/
 ├── __main__.py           # CLI entry point, orchestration
@@ -29,11 +29,13 @@ output/                   # Generated daily summaries (gitignored)
 ## Data Flow
 
 ```
-accounts.txt ──→ load_accounts()
+accounts.json ──→ load_accounts()  ──→ {platform: [{handle, limit?}]}
                         │
-                 create_scraper() ──→ backend-specific API call
+            for platform, accounts in accounts.items():
+                create_scraper(platform) ──→ scraper
                         │
-                 fetch_posts() ──→ list[Post] (today only)
+                for account in accounts:
+                    fetch_posts() ──→ list[Post] (today only)
                         │
                  deduplicate against .seen.json
                         │
@@ -48,10 +50,9 @@ accounts.txt ──→ load_accounts()
 ### 1. CLI Layer (`__main__.py`)
 
 `argparse` subcommands:
-- **`scrape`** (default) — fetch posts from all accounts
-  - `--backend {bluesky,instaloader,hikerapi,xpoz}` — select scraper (default: bluesky)
+- **`scrape`** (default) — fetch posts from all accounts (all platforms)
   - `--api-key` — override API key (highest priority)
-- **`add <handle> [--platform bluesky|instagram]`** — append handle to `accounts.txt`
+- **`add <handle> [--platform bluesky|instagram|...] [--limit N]`** — append handle to `accounts.json`
 
 Orchestrates the flow: load accounts → create scraper → fetch posts → deduplicate → write output.
 
@@ -80,13 +81,23 @@ Each backend implements `fetch_posts()` → returns `Post` objects filtered to *
 | `hikerapi` | ~$0.0006/request | REST API (httpx) | `x-access-key` header |
 | `xpoz` | Free tier | SDK (xpoz) | API key |
 
-Factory pattern in `scrapers/__init__.py`:
+Platform-to-scraper mapping in `scrapers/__init__.py`:
 
 ```python
-def create_scraper(backend: str, api_key: str | None = None) -> Scraper:
-    key = api_key or get_api_key(backend)  # explicit > config > env
+PLATFORM_MAP = {
+    "instagram": "instaloader",
+    "bluesky": "bluesky",
+    "hikerapi": "hikerapi",
+    "xpoz": "xpoz",
+}
+
+def create_scraper(platform: str, api_key: str | None = None) -> Scraper:
+    scraper_name = PLATFORM_MAP.get(platform, platform)
+    key = api_key or get_api_key(scraper_name)  # explicit > config > env
     return cls(api_key=key) if key else cls()
 ```
+
+The `__main__.py` groups accounts by platform and creates a scraper per platform, fetching from each account sequentially.
 
 ### 3. Config Layer (`config.py`)
 

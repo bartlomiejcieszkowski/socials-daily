@@ -10,6 +10,14 @@ from .hikerapi import HikerAPIScraper
 from .instaloader import InstaloaderScraper
 from .xpoz import XpozScraper
 
+# Map platform names (user-facing) to scraper names (internal)
+PLATFORM_MAP = {
+    "instagram": "instaloader",
+    "bluesky": "bluesky",
+    "hikerapi": "hikerapi",
+    "xpoz": "xpoz",
+}
+
 
 def create_scraper(backend: str, api_key: Optional[str] = None) -> Scraper:
     """Create a scraper instance for the given backend.
@@ -24,12 +32,15 @@ def create_scraper(backend: str, api_key: Optional[str] = None) -> Scraper:
         "hikerapi": HikerAPIScraper,
         "xpoz": XpozScraper,
     }
-    cls = backends.get(backend)
+
+    # Resolve platform name to scraper name
+    scraper_name = PLATFORM_MAP.get(backend, backend)
+    cls = backends.get(scraper_name)
     if not cls:
-        raise ValueError(f"Unknown backend: {backend}. Available: {list(backends.keys())}")
+        raise ValueError(f"Unknown backend: {scraper_name}. Available: {list(backends.keys())}")
 
     # Resolve API key: explicit > config > env var
-    key = api_key or get_api_key(backend)
+    key = api_key or get_api_key(scraper_name)
     return cls(api_key=key) if key else cls()
 
 

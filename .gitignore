@@ -19,4 +19,4 @@ output/
 .socials_daily.config.json
 
 # Account list (personal data)
-accounts.txt
+accounts.json

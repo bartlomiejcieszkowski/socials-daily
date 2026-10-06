@@ -16,12 +16,27 @@ uv sync -E xpoz
 
 ## Usage
 
-1. Edit `accounts.txt` — one handle per line:
+1. Edit `accounts.json` — grouped by platform:
 
+```json
+{
+  "bluesky": ["bsky.app"],
+  "instagram": ["natgeo", "nasa"]
+}
 ```
-bsky.app
-natgeo
-nasa
+
+Each account can have a custom `limit`:
+
+```json
+{
+  "bluesky": [
+    {"handle": "bsky.app"},
+    {"handle": "atmos.bsky.social", "limit": 20}
+  ],
+  "instagram": [
+    {"handle": "natgeo"}
+  ]
+}
 ```
 
 2. Run the scraper:
@@ -55,6 +70,9 @@ uv run python -m socials_daily add bsky.app
 
 # Instagram
 uv run python -m socials_daily add natgeo --platform instagram
+
+# With custom limit
+uv run python -m socials_daily add atmos.bsky.social --platform bluesky --limit 20
 ```
 
 ## Scrapers
@@ -99,7 +117,7 @@ uv run python -m socials_daily scrape --backend xpoz
 ## Project Structure
 
 ```
-accounts.txt          # List of social handles
+accounts.json         # Accounts grouped by platform
 src/socials_daily/    # Source code
 ├── __main__.py       # Entry point
 └── scrapers/         # Scraper backends
