@@ -8,6 +8,12 @@ Fetch recent posts from public social media accounts and generate a daily summar
 uv sync
 ```
 
+Optional backends (installed by default):
+
+```bash
+uv sync
+```
+
 For Xpoz backend (optional):
 
 ```bash
@@ -110,6 +116,8 @@ uv run python -m socials_daily add natgeo --platform instagram --backend hikerap
 |---|---|---|---|
 | `bluesky` | Free | None | Public Bluesky accounts |
 | `instaloader` | Free | None | 1-5 Instagram accounts, low volume |
+| `reddit` | Free | None | Subreddit posts |
+| `rss` | Free | None | Any RSS/Atom feed |
 | `hikerapi` | ~$0.0006/request | API key | Reliable, high volume |
 | `xpoz` | Free tier available | API key | Pre-indexed data, multi-platform |
 
@@ -143,6 +151,30 @@ export XPOZ_API_KEY=your-key
 uv run python -m socials_daily scrape --backend xpoz
 ```
 
+### Reddit
+
+Fetches recent posts from public subreddits via Reddit's JSON API. No authentication required.
+
+```bash
+# Add a subreddit
+uv run python -m socials_daily add programming --platform reddit
+
+# Scrape
+uv run python -m socials_daily scrape
+```
+
+### RSS
+
+Scrapes any RSS/Atom feed. The `handle` field holds the feed URL.
+
+```bash
+# Add an RSS feed
+uv run python -m socials_daily add https://www.reddit.com/r/programming/.rss --platform rss
+
+# Scrape
+uv run python -m socials_daily scrape
+```
+
 ## Project Structure
 
 ```
@@ -153,6 +185,8 @@ src/socials_daily/    # Source code
     ├── base.py       # Abstract interface
     ├── bluesky.py
     ├── instaloader.py
+    ├── reddit.py     # Reddit JSON API
+    ├── rss.py        # RSS/Atom feeds
     ├── hikerapi.py
     └── xpoz.py
 output/               # Generated daily summaries

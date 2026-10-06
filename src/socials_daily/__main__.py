@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .scrapers import Post, create_scraper
+from .scrapers import create_scraper
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -21,13 +21,16 @@ ACCOUNTS_FILE = Path("accounts.json")
 SEEN_FILE = Path(".seen.json")
 POSTS_LIMIT = 10  # default posts per account
 
-SUPPORTED_PLATFORMS = ["bluesky", "instagram", "hikerapi", "xpoz"]
+SUPPORTED_PLATFORMS = ["bluesky", "instagram", "reddit", "rss", "hikerapi", "xpoz"]
 
 
 def load_seen() -> set[str]:
     """Load already-seen post permalinks from the seen file."""
     if SEEN_FILE.exists():
-        return set(json.loads(SEEN_FILE.read_text(encoding="utf-8")))
+        try:
+            return set(json.loads(SEEN_FILE.read_text(encoding="utf-8")))
+        except (json.JSONDecodeError, OSError):
+            return set()
     return set()
 
 
@@ -53,7 +56,10 @@ def load_accounts(path: Path = ACCOUNTS_FILE) -> dict[str, dict]:
     if not path.exists():
         return {}
 
-    data = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
 
     # Handle legacy flat list format
     if isinstance(data, list):

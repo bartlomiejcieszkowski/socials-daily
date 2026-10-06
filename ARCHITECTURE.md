@@ -17,6 +17,8 @@ src/socials_daily/
     ├── base.py           # Abstract interface: Scraper protocol + Post dataclass
     ├── bluesky.py        # Bluesky AT Protocol (public, no auth)
     ├── instaloader.py    # Free, rate-limited (instaloader library)
+    ├── reddit.py         # Reddit JSON API (httpx, no auth)
+    ├── rss.py            # RSS/Atom feeds (feedparser)
     ├── hikerapi.py       # REST API, pay-per-request (httpx)
     └── xpoz.py           # Pre-indexed DB (xpoz SDK)
 output/                   # Generated daily summaries (gitignored)
@@ -80,6 +82,8 @@ Each backend implements `fetch_posts()` → returns `Post` objects filtered to *
 |---|---|---|---|
 | `bluesky` | Free | AT Protocol (atproto lib) | None (public) |
 | `instaloader` | Free | HTTP (instaloader lib) | None |
+| `reddit` | Free | JSON API (httpx) | None |
+| `rss` | Free | RSS/Atom XML (feedparser) | None |
 | `hikerapi` | ~$0.0006/request | REST API (httpx) | `x-access-key` header |
 | `xpoz` | Free tier | SDK (xpoz) | API key |
 
@@ -89,6 +93,8 @@ Platform-to-scraper mapping in `scrapers/__init__.py`:
 PLATFORM_MAP = {
     "instagram": "instaloader",
     "bluesky": "bluesky",
+    "reddit": "reddit",
+    "rss": "rss",
     "hikerapi": "hikerapi",
     "xpoz": "xpoz",
 }

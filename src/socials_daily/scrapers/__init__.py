@@ -2,24 +2,26 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 from .base import Post, Scraper
 from .bluesky import BlueskyScraper
 from .hikerapi import HikerAPIScraper
 from .instaloader import InstaloaderScraper
+from .reddit import RedditScraper
+from .rss import RSSScraper
 from .xpoz import XpozScraper
 
 # Map platform names (user-facing) to scraper names (internal)
 PLATFORM_MAP = {
     "instagram": "instaloader",
     "bluesky": "bluesky",
+    "reddit": "reddit",
+    "rss": "rss",
     "hikerapi": "hikerapi",
     "xpoz": "xpoz",
 }
 
 
-def create_scraper(platform: str, api_key: Optional[str] = None, backend: Optional[str] = None) -> Scraper:
+def create_scraper(platform: str, api_key: str | None = None, backend: str | None = None) -> Scraper:
     """Create a scraper instance for the given platform.
 
     Backend resolution (highest to lowest priority):
@@ -34,6 +36,8 @@ def create_scraper(platform: str, api_key: Optional[str] = None, backend: Option
     backends = {
         "bluesky": BlueskyScraper,
         "instaloader": InstaloaderScraper,
+        "reddit": RedditScraper,
+        "rss": RSSScraper,
         "hikerapi": HikerAPIScraper,
         "xpoz": XpozScraper,
     }
@@ -53,4 +57,4 @@ def create_scraper(platform: str, api_key: Optional[str] = None, backend: Option
     return cls(api_key=key) if key else cls()
 
 
-__all__ = ["Post", "Scraper", "BlueskyScraper", "InstaloaderScraper", "HikerAPIScraper", "XpozScraper", "create_scraper"]
+__all__ = ["Post", "Scraper", "BlueskyScraper", "InstaloaderScraper", "RedditScraper", "RSSScraper", "HikerAPIScraper", "XpozScraper", "create_scraper"]
