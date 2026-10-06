@@ -7,7 +7,7 @@ A Python tool that fetches recent posts from public social media accounts and ge
 ## Project Structure
 
 ```
-accounts.json             # Accounts grouped by platform
+accounts.json             # Accounts grouped by platform (with optional backend config)
 pyproject.toml            # uv project config
 src/socials_daily/
 ├── __main__.py           # CLI entry point, orchestration
@@ -29,12 +29,13 @@ output/                   # Generated daily summaries (gitignored)
 ## Data Flow
 
 ```
-accounts.json ──→ load_accounts()  ──→ {platform: [{handle, limit?}]}
+accounts.json ──→ load_accounts()  ──→ {platform: {backend?, accounts: [{handle, limit?}]}}
                         │
-            for platform, accounts in accounts.items():
-                create_scraper(platform) ──→ scraper
+            for platform, config in accounts.items():
+                backend = CLI_flag > config.backend > default_mapping
+                create_scraper(platform, backend=backend) ──→ scraper
                         │
-                for account in accounts:
+                for account in config.accounts:
                     fetch_posts() ──→ list[Post] (today only)
                         │
                  deduplicate against .seen.json
@@ -52,7 +53,8 @@ accounts.json ──→ load_accounts()  ──→ {platform: [{handle, limit?}]
 `argparse` subcommands:
 - **`scrape`** (default) — fetch posts from all accounts (all platforms)
   - `--api-key` — override API key (highest priority)
-- **`add <handle> [--platform bluesky|instagram|...] [--limit N]`** — append handle to `accounts.json`
+  - `--backend` — override scraper backend for all platforms (takes precedence over platform config)
+- **`add <handle> [--platform bluesky|instagram|...] [--limit N] [--backend X]`** — append handle to `accounts.json`
 
 Orchestrates the flow: load accounts → create scraper → fetch posts → deduplicate → write output.
 
@@ -91,13 +93,19 @@ PLATFORM_MAP = {
     "xpoz": "xpoz",
 }
 
-def create_scraper(platform: str, api_key: str | None = None) -> Scraper:
-    scraper_name = PLATFORM_MAP.get(platform, platform)
+def create_scraper(platform: str, api_key: str | None = None, backend: str | None = None) -> Scraper:
+    # Resolution: explicit backend arg > platform config > default mapping
+    scraper_name = backend or PLATFORM_MAP.get(platform, platform)
     key = api_key or get_api_key(scraper_name)  # explicit > config > env
     return cls(api_key=key) if key else cls()
 ```
 
-The `__main__.py` groups accounts by platform and creates a scraper per platform, fetching from each account sequentially.
+Backend resolution (highest to lowest priority):
+1. **CLI `--backend` flag** — overrides all
+2. **Platform `backend` in `accounts.json`** — per-platform override
+3. **Default mapping** — platform name → scraper name
+
+The `__main__.py` groups accounts by platform, resolves the scraper backend per platform, and fetches from each account sequentially.
 
 ### 3. Config Layer (`config.py`)
 

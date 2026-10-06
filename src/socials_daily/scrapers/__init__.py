@@ -19,8 +19,13 @@ PLATFORM_MAP = {
 }
 
 
-def create_scraper(backend: str, api_key: Optional[str] = None) -> Scraper:
-    """Create a scraper instance for the given backend.
+def create_scraper(platform: str, api_key: Optional[str] = None, backend: Optional[str] = None) -> Scraper:
+    """Create a scraper instance for the given platform.
+
+    Backend resolution (highest to lowest priority):
+    1. Explicit ``backend`` argument (CLI override)
+    2. ``backend`` from platform config in accounts.json
+    3. Default mapping: platform name → scraper name (e.g. ``instagram`` → ``instaloader``)
 
     API key is resolved in order: explicit argument > config file > env var.
     """
@@ -34,7 +39,11 @@ def create_scraper(backend: str, api_key: Optional[str] = None) -> Scraper:
     }
 
     # Resolve platform name to scraper name
-    scraper_name = PLATFORM_MAP.get(backend, backend)
+    if backend:
+        scraper_name = backend
+    else:
+        scraper_name = PLATFORM_MAP.get(platform, platform)
+
     cls = backends.get(scraper_name)
     if not cls:
         raise ValueError(f"Unknown backend: {scraper_name}. Available: {list(backends.keys())}")

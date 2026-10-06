@@ -20,8 +20,12 @@ uv sync -E xpoz
 
 ```json
 {
-  "bluesky": ["bsky.app"],
-  "instagram": ["natgeo", "nasa"]
+  "bluesky": {
+    "accounts": ["bsky.app"]
+  },
+  "instagram": {
+    "accounts": ["natgeo", "nasa"]
+  }
 }
 ```
 
@@ -29,15 +33,37 @@ Each account can have a custom `limit`:
 
 ```json
 {
-  "bluesky": [
-    {"handle": "bsky.app"},
-    {"handle": "atmos.bsky.social", "limit": 20}
-  ],
-  "instagram": [
-    {"handle": "natgeo"}
-  ]
+  "bluesky": {
+    "accounts": [
+      {"handle": "bsky.app"},
+      {"handle": "atmos.bsky.social", "limit": 20}
+    ]
+  },
+  "instagram": {
+    "accounts": [
+      {"handle": "natgeo"}
+    ]
+  }
 }
 ```
+
+Each platform can override the scraper backend (optional):
+
+```json
+{
+  "instagram": {
+    "backend": "hikerapi",
+    "accounts": [
+      {"handle": "natgeo"}
+    ]
+  }
+}
+```
+
+**Backend resolution** (highest to lowest priority):
+1. CLI `--backend` flag (overrides everything)
+2. Platform `backend` in `accounts.json`
+3. Default mapping (`instagram` → `instaloader`, `bluesky` → `bluesky`, etc.)
 
 2. Run the scraper:
 
@@ -73,6 +99,9 @@ uv run python -m socials_daily add natgeo --platform instagram
 
 # With custom limit
 uv run python -m socials_daily add atmos.bsky.social --platform bluesky --limit 20
+
+# Set platform backend
+uv run python -m socials_daily add natgeo --platform instagram --backend hikerapi
 ```
 
 ## Scrapers
@@ -117,7 +146,7 @@ uv run python -m socials_daily scrape --backend xpoz
 ## Project Structure
 
 ```
-accounts.json         # Accounts grouped by platform
+accounts.json         # Accounts grouped by platform (with optional backend config)
 src/socials_daily/    # Source code
 ├── __main__.py       # Entry point
 └── scrapers/         # Scraper backends
