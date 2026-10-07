@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import re
 from datetime import datetime, timezone
 
 import httpx
 
+from ..errors import ProviderError
 from ..scrapers.base import Post, Scraper
+
+log = logging.getLogger(__name__)
 
 
 class HikerAPIProvider(Scraper):
@@ -18,27 +23,53 @@ class HikerAPIProvider(Scraper):
 
     def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key or os.getenv("HIKERAPI_TOKEN")
+        if not self._api_key:
+            log.warning("No HIKERAPI_TOKEN set — API calls will fail")
         self._client = httpx.Client(
             base_url="https://api.hikerapi.com",
-            headers={"x-access-key": self._api_key or "", "accept": "application/json"},
+            headers={
+                "x-access-key": self._api_key or "",
+                "accept": "application/json",
+            },
             timeout=30.0,
         )
 
     def _get_user_id(self, username: str) -> str:
         """Resolve username to user ID."""
-        resp = self._client.get("/v2/user/by/username", params={"username": username})
-        resp.raise_for_status()
-        data = resp.json()
-        return data["user"]["pk"]
+        try:
+            resp = self._client.get("/v2/user/by/username", params={"username": username})
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                raise ProviderError(f"User {username} not found", "hikerapi") from exc
+            if exc.response.status_code == 401:
+                raise ProviderError("Invalid API key", "hikerapi") from exc
+            raise ProviderError(f"API error: {exc}", "hikerapi") from exc
 
-    def _fetch_medias_chunk(self, user_id: str, end_cursor: str | None = None) -> tuple[list[dict], str | None]:
+        try:
+            data = resp.json()
+            return data["user"]["pk"]
+        except (KeyError, json.JSONDecodeError) as exc:
+            raise ProviderError(f"Unexpected response format: {exc}", "hikerapi") from exc
+
+    def _fetch_medias_chunk(
+        self, user_id: str, end_cursor: str | None = None
+    ) -> tuple[list[dict], str | None]:
         """Fetch a chunk of user medias."""
         params: dict = {"user_id": user_id}
         if end_cursor:
             params["end_cursor"] = end_cursor
-        resp = self._client.get("/v1/user/medias/chunk", params=params)
-        resp.raise_for_status()
-        result = resp.json()
+        try:
+            resp = self._client.get("/v1/user/medias/chunk", params=params)
+            resp.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            raise ProviderError(f"API error: {exc}", "hikerapi") from exc
+
+        try:
+            result = resp.json()
+        except json.JSONDecodeError as exc:
+            raise ProviderError(f"Invalid JSON response: {exc}", "hikerapi") from exc
+
         if isinstance(result, list) and len(result) == 2:
             items, cursor = result
         else:
@@ -63,7 +94,10 @@ class HikerAPIProvider(Scraper):
                     break
                 taken_at = item.get("taken_at")
                 if taken_at:
-                    post_date = datetime.fromtimestamp(taken_at, tz=timezone.utc).date()
+                    try:
+                        post_date = datetime.fromtimestamp(taken_at, tz=timezone.utc).date()
+                    except (OSError, OverflowError, ValueError):
+                        continue
                     if post_date != today:
                         continue
                 caption = (item.get("caption_text") or "").strip()
@@ -75,9 +109,11 @@ class HikerAPIProvider(Scraper):
                         Post(
                             caption=caption,
                             link=link,
-                            date=datetime.fromtimestamp(taken_at, tz=timezone.utc)
-                            if taken_at
-                            else datetime.now(timezone.utc),
+                            date=(
+                                datetime.fromtimestamp(taken_at, tz=timezone.utc)
+                                if taken_at
+                                else datetime.now(timezone.utc)
+                            ),
                         )
                     )
 

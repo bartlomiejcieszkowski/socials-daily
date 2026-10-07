@@ -259,7 +259,7 @@ def main() -> None:
             log.info("  %s: %d account(s) [backend: %s]", platform, len(config.get("accounts", [])), backend)
 
         output = generate_summary(accounts, api_key=args.api_key, cli_backend=args.backend)
-        print(f"\nDone! Summary: {output}")
+        log.info("Done! Summary: %s", output)
 
 
 if __name__ == "__main__":

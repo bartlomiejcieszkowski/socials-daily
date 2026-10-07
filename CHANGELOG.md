@@ -73,11 +73,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.2.0] — Planned
+## [0.3.0] — Planned
 
-- [ ] Add test suite with pytest
 - [ ] Improve error handling and logging
 - [ ] Add more social platforms (TikTok, X/Twitter, etc.)
+- [ ] Add `--output-dir` and `--format` CLI flags
+- [ ] Add `console_scripts` entry point (`socials-daily` command)
 
 [Unreleased]: https://github.com/bartlomiejcieszkowski/socials-daily/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/bartlomiejcieszkowski/socials-daily/releases/tag/v0.2.0

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime, timezone
 
@@ -9,6 +10,8 @@ from atproto import Client
 from atproto_client.models.com.atproto.repo.list_records import Params
 
 from .base import Post, Scraper
+
+log = logging.getLogger(__name__)
 
 
 class BlueskyScraper(Scraper):
@@ -25,6 +28,7 @@ class BlueskyScraper(Scraper):
             result = self._client.resolve_handle(handle)
             return result.did
         except Exception:
+            log.warning("Could not resolve handle: %s", handle)
             return None
 
     def _process_facets(self, text: str, facets: list) -> str:
@@ -74,6 +78,7 @@ class BlueskyScraper(Scraper):
             try:
                 result = self._client.com.atproto.repo.list_records(params=params)
             except Exception:
+                log.warning("Failed to fetch posts for %s", handle)
                 break
 
             if not result.records:

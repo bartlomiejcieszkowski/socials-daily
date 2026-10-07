@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import time
 from datetime import datetime, timezone
-from typing import Optional
 
 import instaloader
 from instaloader import Instaloader, Profile
 
+from ..errors import ScraperError
 from .base import Post, Scraper
+
+log = logging.getLogger(__name__)
 
 
 class LenientRateController(instaloader.RateController):
@@ -49,7 +52,7 @@ class InstaloaderScraper(Scraper):
         try:
             profile = Profile.from_username(self._loader.context, username)
         except Exception as exc:
-            return []
+            raise ScraperError(f"Failed to load profile: {exc}", "instaloader") from exc
 
         today = datetime.now(timezone.utc).date()
         posts: list[Post] = []
