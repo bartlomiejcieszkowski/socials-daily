@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+## [0.2.0] — 2026-10-07
+
+### Added
+- Test suite with pytest — 53 tests covering config, accounts, deduplication, scrapers, providers, and summary generation
+
+### Changed
+- Nothing
+
+### Fixed
+- Nothing
+
+### Deprecated
+- Nothing
+
+### Removed
+- Nothing
+
+### Security
+- Nothing
+
+### Contributors
+- Bartlomiej Cieszkowski
+
+---
+
 ## [0.1.0] — 2026-10-07
 
 ### Added
@@ -52,4 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [ ] Improve error handling and logging
 - [ ] Add more social platforms (TikTok, X/Twitter, etc.)
 
+[Unreleased]: https://github.com/bartlomiejcieszkowski/socials-daily/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/bartlomiejcieszkowski/socials-daily/releases/tag/v0.2.0
 [0.1.0]: https://github.com/bartlomiejcieszkowski/socials-daily/releases/tag/v0.1.0
