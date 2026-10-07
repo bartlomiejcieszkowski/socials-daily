@@ -11,6 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .providers import _PROVIDER_BACKENDS, create_provider
 from .scrapers import create_scraper
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -160,7 +161,7 @@ def generate_summary(
 
             log.info("[%d/%d] Fetching posts from %s/%s ...", index, total_accounts, platform, handle)
             scraper = create_scraper(scraper_backend, api_key)
-            log.info("  Using scraper: %s (resolved from %s)", scraper.name, scraper_backend)
+            log.info("  Using %s: %s (resolved from %s)", "provider" if scraper_backend in _PROVIDER_BACKENDS else "scraper", scraper.name, scraper_backend)
 
             try:
                 posts = scraper.fetch_posts(handle, limit=limit)

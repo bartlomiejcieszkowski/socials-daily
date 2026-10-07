@@ -1,4 +1,4 @@
-"""Xpoz scraper — pre-indexed social data API."""
+"""Xpoz provider — pre-indexed social data API."""
 
 from __future__ import annotations
 
@@ -6,11 +6,11 @@ import os
 from datetime import datetime, timezone
 from typing import Optional
 
-from .base import Post, Scraper
+from ..scrapers.base import Post, Scraper
 
 
-class XpozScraper(Scraper):
-    """Scraper using Xpoz's pre-indexed social data API."""
+class XpozProvider(Scraper):
+    """Provider using Xpoz's pre-indexed social data API."""
 
     name = "xpoz"
 

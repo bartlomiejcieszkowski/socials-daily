@@ -1,4 +1,4 @@
-"""HikerAPI scraper — pay-per-request REST API."""
+"""HikerAPI provider — pay-per-request REST API."""
 
 from __future__ import annotations
 
@@ -9,11 +9,11 @@ from typing import Optional
 
 import httpx
 
-from .base import Post, Scraper
+from ..scrapers.base import Post, Scraper
 
 
-class HikerAPIScraper(Scraper):
-    """Scraper using HikerAPI's REST API."""
+class HikerAPIProvider(Scraper):
+    """Provider using HikerAPI's REST API."""
 
     name = "hikerapi"
 

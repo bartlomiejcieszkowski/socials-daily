@@ -12,7 +12,7 @@ from .rss import RSSScraper
 from .youtube import YouTubeScraper
 
 if TYPE_CHECKING:
-    pass  # hikerapi and xpoz imported lazily
+    pass  # providers imported lazily
 
 # Map platform names (user-facing) to scraper names (internal)
 PLATFORM_MAP = {
@@ -25,8 +25,8 @@ PLATFORM_MAP = {
     "xpoz": "xpoz",
 }
 
-# Known optional backends that may not be installed
-_OPTIONAL_BACKENDS = {"hikerapi", "xpoz"}
+# Known providers that require third-party SDKs
+_PROVIDER_BACKENDS = {"hikerapi", "xpoz"}
 
 
 def create_scraper(platform: str, api_key: str | None = None, backend: str | None = None) -> Scraper:
@@ -55,16 +55,11 @@ def create_scraper(platform: str, api_key: str | None = None, backend: str | Non
         "youtube": YouTubeScraper,
     }
 
-    # Lazy-load optional backends so the package imports without them
-    if scraper_name in _OPTIONAL_BACKENDS:
-        if scraper_name == "hikerapi":
-            from .hikerapi import HikerAPIScraper  # noqa: PLC0415
+    # Lazy-load optional providers so the package imports without them
+    if scraper_name in _PROVIDER_BACKENDS:
+        from ..providers import create_provider
 
-            backends["hikerapi"] = HikerAPIScraper
-        elif scraper_name == "xpoz":
-            from .xpoz import XpozScraper  # noqa: PLC0415
-
-            backends["xpoz"] = XpozScraper
+        backends[scraper_name] = create_provider(scraper_name)
 
     cls = backends.get(scraper_name)
     if not cls:
