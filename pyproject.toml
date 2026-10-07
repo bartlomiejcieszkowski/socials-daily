@@ -1,11 +1,23 @@
 [project]
 name = "socials-daily"
-version = "0.1.0"
 description = "Multi-platform social media daily digest CLI"
+readme = "README.md"
+dynamic = ["version"]
 authors = [
     { name = "Bartlomiej Cieszkowski", email = "bartlomiej.cieszkowski@gmail.com" }
 ]
 requires-python = ">=3.12"
+keywords = ["social-media", "scraper", "cli", "daily", "summary"]
+license = { file = "LICENSE" }
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
+    "Topic :: Internet :: WWW/HTTP",
+]
+
 dependencies = [
     "atproto>=0.0.72",
     "feedparser>=6.0.14",
@@ -18,9 +30,32 @@ hikerapi = ["hikerapi>=1.8.2"]
 xpoz = ["xpoz>=0.8.0"]
 youtube = ["yt-dlp>=2024.0.0"]
 
-[dependency-groups]
-dev = []
+[project.urls]
+"Homepage" = "https://github.com/bartlomiejcieszkowski/socials-daily"
+"Bug Tracker" = "https://github.com/bartlomiejcieszkowski/socials-daily/issues"
+"Documentation" = "https://github.com/bartlomiejcieszkowski/socials-daily#readme"
 
 [build-system]
-requires = ["uv_build>=0.12.5,<0.13.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build]
+only-packages = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/socials_daily"]
+
+[tool.hatch.version]
+path = "src/socials_daily/__init__.py"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["I"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.1",
+]
