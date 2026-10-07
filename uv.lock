@@ -908,12 +908,14 @@ source = { editable = "." }
 dependencies = [
     { name = "atproto" },
     { name = "feedparser" },
-    { name = "hikerapi" },
     { name = "httpx" },
     { name = "instaloader" },
 ]
 
 [package.optional-dependencies]
+hikerapi = [
+    { name = "hikerapi" },
+]
 xpoz = [
     { name = "xpoz" },
 ]
@@ -925,13 +927,13 @@ youtube = [
 requires-dist = [
     { name = "atproto", specifier = ">=0.0.72" },
     { name = "feedparser", specifier = ">=6.0.14" },
-    { name = "hikerapi", specifier = ">=1.8.2" },
+    { name = "hikerapi", marker = "extra == 'hikerapi'", specifier = ">=1.8.2" },
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "instaloader", specifier = ">=4.15.3" },
     { name = "xpoz", marker = "extra == 'xpoz'", specifier = ">=0.8.0" },
     { name = "yt-dlp", marker = "extra == 'youtube'", specifier = ">=2024.0.0" },
 ]
-provides-extras = ["xpoz", "youtube"]
+provides-extras = ["hikerapi", "xpoz", "youtube"]
 
 [package.metadata.requires-dev]
 dev = []

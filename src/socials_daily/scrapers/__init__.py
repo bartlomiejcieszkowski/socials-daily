@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from .base import Post, Scraper
 from .bluesky import BlueskyScraper
-from .hikerapi import HikerAPIScraper
 from .instaloader import InstaloaderScraper
 from .reddit import RedditScraper
 from .rss import RSSScraper
-from .xpoz import XpozScraper
 from .youtube import YouTubeScraper
+
+if TYPE_CHECKING:
+    pass  # hikerapi and xpoz imported lazily
 
 # Map platform names (user-facing) to scraper names (internal)
 PLATFORM_MAP = {
@@ -21,6 +24,9 @@ PLATFORM_MAP = {
     "hikerapi": "hikerapi",
     "xpoz": "xpoz",
 }
+
+# Known optional backends that may not be installed
+_OPTIONAL_BACKENDS = {"hikerapi", "xpoz"}
 
 
 def create_scraper(platform: str, api_key: str | None = None, backend: str | None = None) -> Scraper:
@@ -35,21 +41,30 @@ def create_scraper(platform: str, api_key: str | None = None, backend: str | Non
     """
     from ..config import get_api_key
 
-    backends = {
-        "bluesky": BlueskyScraper,
-        "instaloader": InstaloaderScraper,
-        "reddit": RedditScraper,
-        "rss": RSSScraper,
-        "youtube": YouTubeScraper,
-        "hikerapi": HikerAPIScraper,
-        "xpoz": XpozScraper,
-    }
-
     # Resolve platform name to scraper name
     if backend:
         scraper_name = backend
     else:
         scraper_name = PLATFORM_MAP.get(platform, platform)
+
+    backends: dict[str, type[Scraper]] = {
+        "bluesky": BlueskyScraper,
+        "instaloader": InstaloaderScraper,
+        "reddit": RedditScraper,
+        "rss": RSSScraper,
+        "youtube": YouTubeScraper,
+    }
+
+    # Lazy-load optional backends so the package imports without them
+    if scraper_name in _OPTIONAL_BACKENDS:
+        if scraper_name == "hikerapi":
+            from .hikerapi import HikerAPIScraper  # noqa: PLC0415
+
+            backends["hikerapi"] = HikerAPIScraper
+        elif scraper_name == "xpoz":
+            from .xpoz import XpozScraper  # noqa: PLC0415
+
+            backends["xpoz"] = XpozScraper
 
     cls = backends.get(scraper_name)
     if not cls:
@@ -60,4 +75,4 @@ def create_scraper(platform: str, api_key: str | None = None, backend: str | Non
     return cls(api_key=key) if key else cls()
 
 
-__all__ = ["Post", "Scraper", "BlueskyScraper", "InstaloaderScraper", "RedditScraper", "RSSScraper", "YouTubeScraper", "HikerAPIScraper", "XpozScraper", "create_scraper"]
+__all__ = ["Post", "Scraper", "BlueskyScraper", "InstaloaderScraper", "RedditScraper", "RSSScraper", "YouTubeScraper", "create_scraper"]
