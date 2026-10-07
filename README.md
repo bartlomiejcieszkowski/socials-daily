@@ -8,16 +8,10 @@ Fetch recent posts from public social media accounts and generate a daily summar
 uv sync
 ```
 
-Optional backends (installed by default):
+Optional backends:
 
 ```bash
-uv sync
-```
-
-For Xpoz backend (optional):
-
-```bash
-uv sync -E xpoz
+uv sync -E hikerapi -E xpoz -E youtube
 ```
 
 ## Usage
@@ -27,10 +21,10 @@ uv sync -E xpoz
 ```json
 {
   "bluesky": {
-    "accounts": ["bsky.app"]
+    "accounts": [{"handle": "bsky.app"}]
   },
   "instagram": {
-    "accounts": ["natgeo", "nasa"]
+    "accounts": [{"handle": "natgeo"}, {"handle": "nasa"}]
   }
 }
 ```
