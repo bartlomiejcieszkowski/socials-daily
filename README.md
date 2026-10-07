@@ -2,21 +2,13 @@
 
 Fetch recent posts from public social media accounts and generate a daily summary.
 
-## Setup
+## Quick Start
 
 ```bash
-uv sync
+pip install socials-daily
 ```
 
-Optional backends:
-
-```bash
-uv sync -E hikerapi -E xpoz -E youtube
-```
-
-## Usage
-
-1. Edit `accounts.json` — grouped by platform:
+Create `accounts.json`:
 
 ```json
 {
@@ -24,12 +16,63 @@ uv sync -E hikerapi -E xpoz -E youtube
     "accounts": [{"handle": "bsky.app"}]
   },
   "instagram": {
-    "accounts": [{"handle": "natgeo"}, {"handle": "nasa"}]
+    "accounts": [{"handle": "natgeo"}]
   }
 }
 ```
 
-Each account can have a custom `limit`:
+Run the scraper:
+
+```bash
+python -m socials_daily scrape
+```
+
+Output:
+
+```
+output/daily-summary-YYYY-MM-DD.md   # Markdown summary
+output/daily-summary-YYYY-MM-DD.json # JSON for programmatic use
+```
+
+## Usage
+
+### Scrape
+
+```bash
+# Default: Bluesky (free, no auth needed)
+python -m socials_daily scrape
+
+# Instagram (free, rate-limited)
+python -m socials_daily scrape --backend instaloader
+
+# HikerAPI (pay-per-request, ~$0.0006/request)
+python -m socials_daily scrape --backend hikerapi --api-key YOUR_KEY
+
+# Xpoz (pre-indexed data, free tier available)
+python -m socials_daily scrape --backend xpoz --api-key YOUR_KEY
+```
+
+### Add Accounts
+
+```bash
+# Bluesky (default)
+python -m socials_daily add bsky.app
+
+# Instagram
+python -m socials_daily add natgeo --platform instagram
+
+# With custom limit
+python -m socials_daily add atmos.bsky.social --platform bluesky --limit 20
+
+# Set platform backend
+python -m socials_daily add natgeo --platform instagram --backend hikerapi
+```
+
+## Configuration
+
+### accounts.json
+
+Accounts are grouped by platform. Each account can have a custom `limit`:
 
 ```json
 {
@@ -47,7 +90,7 @@ Each account can have a custom `limit`:
 }
 ```
 
-Each platform can override the scraper backend (optional):
+Each platform can override the scraper backend:
 
 ```json
 {
@@ -65,46 +108,14 @@ Each platform can override the scraper backend (optional):
 2. Platform `backend` in `accounts.json`
 3. Default mapping (`instagram` → `instaloader`, `bluesky` → `bluesky`, etc.)
 
-2. Run the scraper:
+### API Keys
 
-```bash
-# Default: Bluesky (free, no auth needed)
-uv run python -m socials_daily scrape
+API keys are stored in `.socials_daily.config.json` (gitignored). Keys are resolved in order:
+1. CLI `--api-key` flag
+2. `.socials_daily.config.json`
+3. Environment variables (`HIKERAPI_TOKEN`, `XPOZ_API_KEY`)
 
-# Instagram (free, rate-limited)
-uv run python -m socials_daily scrape --backend instaloader
-
-# HikerAPI (pay-per-request, ~$0.0006/request)
-uv run python -m socials_daily scrape --backend hikerapi --api-key YOUR_KEY
-
-# Xpoz (pre-indexed data, free tier available)
-uv run python -m socials_daily scrape --backend xpoz --api-key YOUR_KEY
-```
-
-3. Check the output:
-
-```
-output/daily-summary-YYYY-MM-DD.md   # Markdown summary
-output/daily-summary-YYYY-MM-DD.json # JSON for programmatic use
-```
-
-## Add Accounts
-
-```bash
-# Bluesky (default)
-uv run python -m socials_daily add bsky.app
-
-# Instagram
-uv run python -m socials_daily add natgeo --platform instagram
-
-# With custom limit
-uv run python -m socials_daily add atmos.bsky.social --platform bluesky --limit 20
-
-# Set platform backend
-uv run python -m socials_daily add natgeo --platform instagram --backend hikerapi
-```
-
-## Scrapers
+## Backends
 
 | Backend | Cost | Setup | Best For |
 |---|---|---|---|
@@ -112,16 +123,16 @@ uv run python -m socials_daily add natgeo --platform instagram --backend hikerap
 | `instaloader` | Free | None | 1-5 Instagram accounts, low volume |
 | `reddit` | Free | None | Subreddit posts |
 | `rss` | Free | None | Any RSS/Atom feed |
-| `youtube` | Free | `uv sync -E youtube` | YouTube channel videos |
+| `youtube` | Free | `pip install "socials-daily[youtube]"` | YouTube channel videos |
 | `hikerapi` | ~$0.0006/request | API key | Reliable, high volume |
 | `xpoz` | Free tier available | API key | Pre-indexed data, multi-platform |
 
-### Bluesky (default)
+### Bluesky
 
 Uses Bluesky's public AT Protocol API. No authentication required.
 
 ```bash
-uv run python -m socials_daily scrape --backend bluesky
+python -m socials_daily scrape --backend bluesky
 ```
 
 ### Instaloader
@@ -134,7 +145,7 @@ REST API with 100+ endpoints. No blocks, no rate limits.
 
 ```bash
 export HIKERAPI_TOKEN=your-key
-uv run python -m socials_daily scrape --backend hikerapi
+python -m socials_daily scrape --backend hikerapi
 ```
 
 ### Xpoz
@@ -143,7 +154,7 @@ Pre-indexed social data API. Supports Instagram, Twitter, TikTok, Reddit.
 
 ```bash
 export XPOZ_API_KEY=your-key
-uv run python -m socials_daily scrape --backend xpoz
+python -m socials_daily scrape --backend xpoz
 ```
 
 ### YouTube
@@ -152,13 +163,13 @@ Fetches recent videos from YouTube channels. Requires optional `yt-dlp` dependen
 
 ```bash
 # Install YouTube support
-uv sync -E youtube
+pip install "socials-daily[youtube]"
 
 # Add a channel (handle or name)
-uv run python -m socials_daily add mkbhd --platform youtube
+python -m socials_daily add mkbhd --platform youtube
 
 # Scrape
-uv run python -m socials_daily scrape
+python -m socials_daily scrape
 ```
 
 ### Reddit
@@ -167,10 +178,10 @@ Fetches recent posts from public subreddits via Reddit's JSON API. No authentica
 
 ```bash
 # Add a subreddit
-uv run python -m socials_daily add programming --platform reddit
+python -m socials_daily add programming --platform reddit
 
 # Scrape
-uv run python -m socials_daily scrape
+python -m socials_daily scrape
 ```
 
 ### RSS
@@ -179,31 +190,50 @@ Scrapes any RSS/Atom feed. The `handle` field holds the feed URL.
 
 ```bash
 # Add an RSS feed
-uv run python -m socials_daily add https://www.reddit.com/r/programming/.rss --platform rss
+python -m socials_daily add https://www.reddit.com/r/programming/.rss --platform rss
 
 # Scrape
-uv run python -m socials_daily scrape
+python -m socials_daily scrape
 ```
 
-## Project Structure
+## Development
+
+### Setup
+
+```bash
+uv sync
+```
+
+Optional backends:
+
+```bash
+uv sync -E hikerapi -E xpoz -E youtube
+```
+
+### Project Structure
 
 ```
 accounts.json         # Accounts grouped by platform (with optional backend config)
 src/socials_daily/    # Source code
 ├── __main__.py       # Entry point
-└── scrapers/         # Scraper backends
+├── providers/        # Third-party service providers (require API keys)
+│   ├── hikerapi.py
+│   └── xpoz.py
+└── scrapers/         # Direct scraping (no third-party services)
     ├── base.py       # Abstract interface
     ├── bluesky.py
     ├── instaloader.py
-    ├── reddit.py     # Reddit JSON API
-    ├── rss.py        # RSS/Atom feeds
-    ├── youtube.py    # YouTube channel videos
-    ├── hikerapi.py
-    └── xpoz.py
+    ├── reddit.py
+    ├── rss.py
+    └── youtube.py
 output/               # Generated daily summaries
 pyproject.toml        # Project config (uv)
 ```
 
-## Architecture
+### Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed breakdown of the scraper layer, config resolution, deduplication system, and data flow.
+
+## License
+
+MIT — Copyright 2026 Bartlomiej Cieszkowski
