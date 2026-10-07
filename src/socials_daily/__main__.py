@@ -21,7 +21,7 @@ ACCOUNTS_FILE = Path("accounts.json")
 SEEN_FILE = Path(".seen.json")
 POSTS_LIMIT = 10  # default posts per account
 
-SUPPORTED_PLATFORMS = ["bluesky", "instagram", "reddit", "rss"]
+SUPPORTED_PLATFORMS = ["bluesky", "instagram", "reddit", "rss", "youtube"]
 
 
 def load_seen() -> set[str]:

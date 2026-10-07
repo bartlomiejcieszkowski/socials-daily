@@ -118,6 +118,7 @@ uv run python -m socials_daily add natgeo --platform instagram --backend hikerap
 | `instaloader` | Free | None | 1-5 Instagram accounts, low volume |
 | `reddit` | Free | None | Subreddit posts |
 | `rss` | Free | None | Any RSS/Atom feed |
+| `youtube` | Free | `uv sync -E youtube` | YouTube channel videos |
 | `hikerapi` | ~$0.0006/request | API key | Reliable, high volume |
 | `xpoz` | Free tier available | API key | Pre-indexed data, multi-platform |
 
@@ -149,6 +150,21 @@ Pre-indexed social data API. Supports Instagram, Twitter, TikTok, Reddit.
 ```bash
 export XPOZ_API_KEY=your-key
 uv run python -m socials_daily scrape --backend xpoz
+```
+
+### YouTube
+
+Fetches recent videos from YouTube channels. Requires optional `yt-dlp` dependency.
+
+```bash
+# Install YouTube support
+uv sync -E youtube
+
+# Add a channel (handle or name)
+uv run python -m socials_daily add mkbhd --platform youtube
+
+# Scrape
+uv run python -m socials_daily scrape
 ```
 
 ### Reddit
@@ -187,6 +203,7 @@ src/socials_daily/    # Source code
     ├── instaloader.py
     ├── reddit.py     # Reddit JSON API
     ├── rss.py        # RSS/Atom feeds
+    ├── youtube.py    # YouTube channel videos
     ├── hikerapi.py
     └── xpoz.py
 output/               # Generated daily summaries

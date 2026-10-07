@@ -9,6 +9,7 @@ from .instaloader import InstaloaderScraper
 from .reddit import RedditScraper
 from .rss import RSSScraper
 from .xpoz import XpozScraper
+from .youtube import YouTubeScraper
 
 # Map platform names (user-facing) to scraper names (internal)
 PLATFORM_MAP = {
@@ -16,6 +17,7 @@ PLATFORM_MAP = {
     "bluesky": "bluesky",
     "reddit": "reddit",
     "rss": "rss",
+    "youtube": "youtube",
     "hikerapi": "hikerapi",
     "xpoz": "xpoz",
 }
@@ -38,6 +40,7 @@ def create_scraper(platform: str, api_key: str | None = None, backend: str | Non
         "instaloader": InstaloaderScraper,
         "reddit": RedditScraper,
         "rss": RSSScraper,
+        "youtube": YouTubeScraper,
         "hikerapi": HikerAPIScraper,
         "xpoz": XpozScraper,
     }
@@ -57,4 +60,4 @@ def create_scraper(platform: str, api_key: str | None = None, backend: str | Non
     return cls(api_key=key) if key else cls()
 
 
-__all__ = ["Post", "Scraper", "BlueskyScraper", "InstaloaderScraper", "RedditScraper", "RSSScraper", "HikerAPIScraper", "XpozScraper", "create_scraper"]
+__all__ = ["Post", "Scraper", "BlueskyScraper", "InstaloaderScraper", "RedditScraper", "RSSScraper", "YouTubeScraper", "HikerAPIScraper", "XpozScraper", "create_scraper"]

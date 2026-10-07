@@ -2,7 +2,7 @@
 
 ## Overview
 
-A Python tool that fetches recent posts from public social media accounts and generates a daily markdown/JSON summary. Supports four scraper backends via a pluggable interface, starting with Bluesky and Instagram.
+A Python tool that fetches recent posts from public social media accounts and generates a daily markdown/JSON summary. Supports seven scraper backends via a pluggable interface, starting with Bluesky and Instagram.
 
 ## Project Structure
 
@@ -19,6 +19,7 @@ src/socials_daily/
     ├── instaloader.py    # Free, rate-limited (instaloader library)
     ├── reddit.py         # Reddit JSON API (httpx, no auth)
     ├── rss.py            # RSS/Atom feeds (feedparser)
+    ├── youtube.py        # YouTube channel videos (yt-dlp, optional)
     ├── hikerapi.py       # REST API, pay-per-request (httpx)
     └── xpoz.py           # Pre-indexed DB (xpoz SDK)
 output/                   # Generated daily summaries (gitignored)
@@ -86,6 +87,7 @@ Each backend implements `fetch_posts()` → returns `Post` objects filtered to *
 | `rss` | Free | RSS/Atom XML (feedparser) | None |
 | `hikerapi` | ~$0.0006/request | REST API (httpx) | `x-access-key` header |
 | `xpoz` | Free tier | SDK (xpoz) | API key |
+| `youtube` | Free | yt-dlp lib | None (optional dep) |
 
 Platform-to-scraper mapping in `scrapers/__init__.py`:
 
@@ -95,6 +97,7 @@ PLATFORM_MAP = {
     "bluesky": "bluesky",
     "reddit": "reddit",
     "rss": "rss",
+    "youtube": "youtube",
     "hikerapi": "hikerapi",
     "xpoz": "xpoz",
 }

@@ -16,6 +16,7 @@ dependencies = [
 
 [project.optional-dependencies]
 xpoz = ["xpoz>=0.8.0"]
+youtube = ["yt-dlp>=2024.0.0"]
 
 [dependency-groups]
 dev = []

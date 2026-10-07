@@ -917,6 +917,9 @@ dependencies = [
 xpoz = [
     { name = "xpoz" },
 ]
+youtube = [
+    { name = "yt-dlp" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -926,8 +929,9 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.27.0" },
     { name = "instaloader", specifier = ">=4.15.3" },
     { name = "xpoz", marker = "extra == 'xpoz'", specifier = ">=0.8.0" },
+    { name = "yt-dlp", marker = "extra == 'youtube'", specifier = ">=2024.0.0" },
 ]
-provides-extras = ["xpoz"]
+provides-extras = ["xpoz", "youtube"]
 
 [package.metadata.requires-dev]
 dev = []
@@ -1153,6 +1157,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/51/ca/e8396d0696ae64db71f905eb023d0894badde04073d7f819c1a7c22dfe8c/xpoz-0.8.0.tar.gz", hash = "sha256:3535a2085f657456006ec719ceae2a1e00b941e7647bc3300a03941acd9a5946", size = 69800, upload-time = "2026-09-09T05:17:36.117Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c9/eb/5d686f05974731749685f16cd3f7d05c95bc66dfd76d4518a0bc9d4a170f/xpoz-0.8.0-py3-none-any.whl", hash = "sha256:5f87656d3482cae5a6b6df871c90b575aa75e32cf6ce075ae78d9fb3e4e1487a", size = 50107, upload-time = "2026-09-09T05:17:34.557Z" },
+]
+
+[[package]]
+name = "yt-dlp"
+version = "2026.8.19"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1e/e0/832fa4ca334b766a06933a196066edc3dba37cdb6f14cd98d59bcc69a4b4/yt_dlp-2026.8.19.tar.gz", hash = "sha256:9e213e48cea35c66b378e4447903f118f6392a5fa380a2b6d7070ec86f4e0af1", size = 3052025, upload-time = "2026-08-19T23:48:59.291Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/69/b2/8cd1613f56eed7ceb64fbd4df3f1c01246bfb098e6f398228bafda22b80b/yt_dlp-2026.8.19-py3-none-any.whl", hash = "sha256:1d57897e94c6665a0a6f9bc54b34e584284e32c034ffab3a7df25d8f7b24eedf", size = 3185533, upload-time = "2026-08-19T23:48:56.925Z" },
 ]
 
 [[package]]
