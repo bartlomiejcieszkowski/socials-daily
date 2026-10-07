@@ -10,7 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.2.0] — 2026-10-07
 
 ### Added
-- Test suite with pytest — 53 tests covering config, accounts, deduplication, scrapers, providers, and summary generation
+- Test suite with pytest — 69 tests covering config, accounts, deduplication, scrapers, providers, and summary generation
+- Custom exception types: `SocialsDailyError`, `ScraperError`, `ProviderError`, `ConfigError`, `AccountError`
+- Structured logging in all scrapers and providers (replaced `print()` calls)
+- API key validation warnings in hikerapi and xpoz providers
+- HTTP error handling with descriptive messages in hikerapi (401, 404, 429)
+- Error chaining with `from exc` for better debugging
 
 ### Changed
 - Nothing
