@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import re
 from datetime import datetime, timezone
-from typing import Optional
 
 import httpx
 
@@ -17,7 +16,7 @@ class HikerAPIProvider(Scraper):
 
     name = "hikerapi"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         self._api_key = api_key or os.getenv("HIKERAPI_TOKEN")
         self._client = httpx.Client(
             base_url="https://api.hikerapi.com",
@@ -32,7 +31,7 @@ class HikerAPIProvider(Scraper):
         data = resp.json()
         return data["user"]["pk"]
 
-    def _fetch_medias_chunk(self, user_id: str, end_cursor: Optional[str] = None) -> tuple[list[dict], Optional[str]]:
+    def _fetch_medias_chunk(self, user_id: str, end_cursor: str | None = None) -> tuple[list[dict], str | None]:
         """Fetch a chunk of user medias."""
         params: dict = {"user_id": user_id}
         if end_cursor:
@@ -52,7 +51,7 @@ class HikerAPIProvider(Scraper):
         user_id = self._get_user_id(username)
         today = datetime.now(timezone.utc).date()
         posts: list[Post] = []
-        end_cursor: Optional[str] = None
+        end_cursor: str | None = None
 
         while len(posts) < limit:
             items, end_cursor = self._fetch_medias_chunk(user_id, end_cursor)
@@ -76,7 +75,9 @@ class HikerAPIProvider(Scraper):
                         Post(
                             caption=caption,
                             link=link,
-                            date=datetime.fromtimestamp(taken_at, tz=timezone.utc) if taken_at else datetime.now(timezone.utc),
+                            date=datetime.fromtimestamp(taken_at, tz=timezone.utc)
+                            if taken_at
+                            else datetime.now(timezone.utc),
                         )
                     )
 

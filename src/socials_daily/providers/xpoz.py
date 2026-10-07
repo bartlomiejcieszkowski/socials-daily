@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from typing import Optional
 
 from ..scrapers.base import Post, Scraper
 
@@ -14,13 +13,11 @@ class XpozProvider(Scraper):
 
     name = "xpoz"
 
-    def __init__(self, api_key: Optional[str] = None) -> None:
+    def __init__(self, api_key: str | None = None) -> None:
         try:
             from xpoz import XpozClient  # noqa: PLC0415
         except ImportError:
-            raise ImportError(
-                "Xpoz SDK not installed. Run: uv add xpoz"
-            )
+            raise ImportError("Xpoz SDK not installed. Run: uv add xpoz")
         self._api_key = api_key or os.getenv("XPOZ_API_KEY")
         self._client = XpozClient(self._api_key)
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from typing import Optional
 
 from atproto import Client
 from atproto_client.models.com.atproto.repo.list_records import Params
@@ -20,7 +19,7 @@ class BlueskyScraper(Scraper):
     def __init__(self) -> None:
         self._client = Client()
 
-    def _resolve_handle(self, handle: str) -> Optional[str]:
+    def _resolve_handle(self, handle: str) -> str | None:
         """Resolve handle to DID."""
         try:
             result = self._client.resolve_handle(handle)
@@ -59,7 +58,7 @@ class BlueskyScraper(Scraper):
 
         today = datetime.now(timezone.utc).date()
         posts: list[Post] = []
-        cursor: Optional[str] = None
+        cursor: str | None = None
         max_pages = 20  # Safety limit to avoid infinite pagination
         consecutive_old = 0  # Stop if we see too many old posts in a row
 

@@ -11,7 +11,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .providers import _PROVIDER_BACKENDS, create_provider
+from .providers import _PROVIDER_BACKENDS, create_provider  # type: ignore[import-not-found]
 from .scrapers import create_scraper
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")

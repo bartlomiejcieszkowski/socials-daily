@@ -11,7 +11,10 @@ CONFIG_FILE = Path(".socials_daily.config.json")
 def load_config() -> dict:
     """Load config from file, or return empty dict if not found."""
     if CONFIG_FILE.exists():
-        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        try:
+            return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            return {}
     return {}
 
 
