@@ -16,7 +16,7 @@ class XpozProvider(Scraper):
 
     def __init__(self, api_key: Optional[str] = None) -> None:
         try:
-            from xpoz import XpozClient
+            from xpoz import XpozClient  # noqa: PLC0415
         except ImportError:
             raise ImportError(
                 "Xpoz SDK not installed. Run: uv add xpoz"

@@ -2,7 +2,7 @@
 
 ## Overview
 
-A Python tool that fetches recent posts from public social media accounts and generates a daily markdown/JSON summary. Supports seven scraper backends via a pluggable interface, starting with Bluesky and Instagram.
+A Python tool that fetches recent posts from public social media accounts and generates a daily markdown/JSON summary. Supports pluggable scrapers (direct scraping) and third-party providers (API-based), starting with Bluesky and Instagram.
 
 ## Project Structure
 
@@ -12,16 +12,18 @@ pyproject.toml            # uv project config
 src/socials_daily/
 ├── __main__.py           # CLI entry point, orchestration
 ├── config.py             # API key resolution (explicit > config > env)
+├── providers/          # Third-party service providers (require API keys)
+│   ├── __init__.py     # Factory: create_provider(name, api_key)
+│   ├── hikerapi.py     # REST API, pay-per-request (httpx)
+│   └── xpoz.py         # Pre-indexed DB (xpoz SDK)
 └── scrapers/
-    ├── __init__.py       # Factory: create_scraper(backend, api_key)
-    ├── base.py           # Abstract interface: Scraper protocol + Post dataclass
-    ├── bluesky.py        # Bluesky AT Protocol (public, no auth)
-    ├── instaloader.py    # Free, rate-limited (instaloader library)
-    ├── reddit.py         # Reddit JSON API (httpx, no auth)
-    ├── rss.py            # RSS/Atom feeds (feedparser)
-    ├── youtube.py        # YouTube channel videos (yt-dlp, optional)
-    ├── hikerapi.py       # REST API, pay-per-request (httpx)
-    └── xpoz.py           # Pre-indexed DB (xpoz SDK)
+    ├── __init__.py     # Factory: create_scraper(platform, api_key, backend)
+    ├── base.py         # Abstract interface: Scraper protocol + Post dataclass
+    ├── bluesky.py      # Bluesky AT Protocol (public, no auth)
+    ├── instaloader.py  # Free, rate-limited (instaloader library)
+    ├── reddit.py       # Reddit JSON API (httpx, no auth)
+    ├── rss.py          # RSS/Atom feeds (feedparser)
+    └── youtube.py      # YouTube channel videos (yt-dlp, optional)
 output/                   # Generated daily summaries (gitignored)
   ├── daily-summary-YYYY-MM-DD.md
   └── daily-summary-YYYY-MM-DD.json
@@ -36,7 +38,7 @@ accounts.json ──→ load_accounts()  ──→ {platform: {backend?, account
                         │
             for platform, config in accounts.items():
                 backend = CLI_flag > config.backend > default_mapping
-                create_scraper(platform, backend=backend) ──→ scraper
+                create_scraper(platform, backend=backend) ──→ scraper or provider
                         │
                 for account in config.accounts:
                     fetch_posts() ──→ list[Post] (today only)
@@ -77,17 +79,59 @@ class Scraper(Protocol):
     def fetch_posts(handle: str, limit: int) -> list[Post]: ...
 ```
 
-Each backend implements `fetch_posts()` → returns `Post` objects filtered to **today's date only**.
+Each scraper implements `fetch_posts()` → returns `Post` objects filtered to **today's date only**.
 
-| Backend | Cost | Transport | Auth |
+Scrapers fetch data directly from public sources — no third-party service required:
+
+| Scraper | Cost | Transport | Auth |
 |---|---|---|---|
 | `bluesky` | Free | AT Protocol (atproto lib) | None (public) |
 | `instaloader` | Free | HTTP (instaloader lib) | None |
 | `reddit` | Free | JSON API (httpx) | None |
 | `rss` | Free | RSS/Atom XML (feedparser) | None |
+| `youtube` | Free | yt-dlp lib | None (optional dep) |
+
+### 3. Provider Layer (`providers/`)
+
+Providers wrap third-party services that require API keys. They implement the same `Scraper` protocol, so the core layer treats them identically to scrapers.
+
+| Provider | Cost | Transport | Auth |
+|---|---|---|---|
 | `hikerapi` | ~$0.0006/request | REST API (httpx) | `x-access-key` header |
 | `xpoz` | Free tier | SDK (xpoz) | API key |
-| `youtube` | Free | yt-dlp lib | None (optional dep) |
+
+### 4. Factory (`scrapers/__init__.py`)
+
+`create_scraper()` resolves the backend and delegates to either a scraper or a provider:
+
+```python
+def create_scraper(platform: str, api_key: str | None = None, backend: str | None = None) -> Scraper:
+    scraper_name = backend or PLATFORM_MAP.get(platform, platform)
+    
+    # Direct scrapers (always available)
+    backends = {"bluesky": BlueskyScraper, "instaloader": InstaloaderScraper, ...}
+    
+    # Providers (lazy-loaded, may not be installed)
+    if scraper_name in _PROVIDER_BACKENDS:
+        from ..providers import create_provider
+        backends[scraper_name] = create_provider(scraper_name)
+    
+    return cls(api_key=key) if key else cls()
+```
+
+Platform-to-scraper mapping:
+
+```python
+PLATFORM_MAP = {
+    "instagram": "instaloader",
+    "bluesky": "bluesky",
+    "reddit": "reddit",
+    "rss": "rss",
+    "youtube": "youtube",
+    "hikerapi": "hikerapi",  # → provider
+    "xpoz": "xpoz",          # → provider
+}
+```
 
 Platform-to-scraper mapping in `scrapers/__init__.py`:
 
