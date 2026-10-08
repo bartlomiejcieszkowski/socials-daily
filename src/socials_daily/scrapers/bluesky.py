@@ -54,13 +54,20 @@ class BlueskyScraper(Scraper):
 
         return text
 
-    def fetch_posts(self, handle: str, limit: int = 10) -> list[Post]:
+    def fetch_posts(
+        self,
+        username: str,
+        limit: int = 10,
+        since: datetime | None = None,
+        till: datetime | None = None,
+    ) -> list[Post]:
         """Fetch recent posts from a Bluesky account."""
-        did = self._resolve_handle(handle)
+        did = self._resolve_handle(username)
         if not did:
             return []
 
-        today = datetime.now(timezone.utc).date()
+        since = since or datetime.now(timezone.utc)
+        till = till or datetime.now(timezone.utc)
         posts: list[Post] = []
         cursor: str | None = None
         max_pages = 20  # Safety limit to avoid infinite pagination
@@ -73,18 +80,18 @@ class BlueskyScraper(Scraper):
                 collection="app.bsky.feed.post",
                 cursor=cursor,
                 limit=25,  # max per page for efficiency
-                reverse=True,  # newest first
+                reverse=False,  # newest first
             )
             try:
                 result = self._client.com.atproto.repo.list_records(params=params)
             except Exception:
-                log.warning("Failed to fetch posts for %s", handle)
+                log.warning("Failed to fetch posts for %s", username)
                 break
 
             if not result.records:
                 break
 
-            has_today_post = False
+            has_recent_post = False
             for record in result.records:
                 if len(posts) >= limit:
                     break
@@ -95,19 +102,19 @@ class BlueskyScraper(Scraper):
 
                 created_at = value.created_at
                 try:
-                    post_date = datetime.fromisoformat(created_at.replace("Z", "+00:00")).date()
+                    post_date = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
                 except (ValueError, AttributeError):
                     continue
 
-                if post_date != today:
+                if not (since.date() <= post_date.date() <= till.date()):
                     consecutive_old += 1
                     # If we've seen enough old posts, stop paginating
                     if consecutive_old > 50:
                         break
                     continue
 
-                has_today_post = True
-                consecutive_old = 0  # Reset counter when we find today's post
+                has_recent_post = True
+                consecutive_old = 0  # Reset counter when we find a post in range
 
                 text = (value.text or "").strip()
                 text = re.sub(r"\s+", " ", text)
@@ -121,11 +128,11 @@ class BlueskyScraper(Scraper):
                     Post(
                         caption=text,
                         link=link,
-                        date=datetime.fromisoformat(created_at.replace("Z", "+00:00")),
+                        date=post_date,
                     )
                 )
 
-            if not has_today_post and consecutive_old > 50:
+            if not has_recent_post and consecutive_old > 50:
                 break
 
             cursor = result.cursor if hasattr(result, "cursor") and result.cursor else None

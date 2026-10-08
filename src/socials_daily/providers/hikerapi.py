@@ -77,10 +77,17 @@ class HikerAPIProvider(Scraper):
             cursor = None
         return items, cursor
 
-    def fetch_posts(self, username: str, limit: int = 10) -> list[Post]:
+    def fetch_posts(
+        self,
+        username: str,
+        limit: int = 10,
+        since: datetime | None = None,
+        till: datetime | None = None,
+    ) -> list[Post]:
         """Fetch recent posts from a public account."""
         user_id = self._get_user_id(username)
-        today = datetime.now(timezone.utc).date()
+        since = since or datetime.now(timezone.utc)
+        till = till or datetime.now(timezone.utc)
         posts: list[Post] = []
         end_cursor: str | None = None
 
@@ -95,10 +102,10 @@ class HikerAPIProvider(Scraper):
                 taken_at = item.get("taken_at")
                 if taken_at:
                     try:
-                        post_date = datetime.fromtimestamp(taken_at, tz=timezone.utc).date()
+                        post_date = datetime.fromtimestamp(taken_at, tz=timezone.utc)
                     except (OSError, OverflowError, ValueError):
                         continue
-                    if post_date != today:
+                    if not (since.date() <= post_date.date() <= till.date()):
                         continue
                 caption = (item.get("caption_text") or "").strip()
                 caption = re.sub(r"\s+", " ", caption)

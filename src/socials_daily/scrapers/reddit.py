@@ -27,7 +27,13 @@ class RedditScraper(Scraper):
             timeout=30.0,
         )
 
-    def fetch_posts(self, username: str, limit: int = 10) -> list[Post]:
+    def fetch_posts(
+        self,
+        username: str,
+        limit: int = 10,
+        since: datetime | None = None,
+        till: datetime | None = None,
+    ) -> list[Post]:
         """Fetch recent posts from a Reddit subreddit."""
         url = f"https://www.reddit.com/r/{username}/new.json?limit=100"
 
@@ -52,8 +58,9 @@ class RedditScraper(Scraper):
             log.warning("Failed to parse Reddit JSON for r/%s", username)
             return []
 
+        since = since or datetime.now(timezone.utc)
+        till = till or datetime.now(timezone.utc)
         children = data.get("data", {}).get("children", [])
-        today = datetime.now(timezone.utc).date()
         posts: list[Post] = []
 
         for child in children:
@@ -70,7 +77,7 @@ class RedditScraper(Scraper):
             except (ValueError, OSError, OverflowError):
                 continue
 
-            if post_date.date() != today:
+            if not (since.date() <= post_date.date() <= till.date()):
                 continue
 
             # Caption: selftext > title > empty

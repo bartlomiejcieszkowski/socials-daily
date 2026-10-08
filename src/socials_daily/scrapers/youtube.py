@@ -35,18 +35,27 @@ class YouTubeScraper(Scraper):
                 "yt-dlp is not installed. Install it with: uv sync -E youtube"
             ) from self._import_error
 
-    def fetch_posts(self, username: str, limit: int = 10) -> list[Post]:
+    def fetch_posts(
+        self,
+        username: str,
+        limit: int = 10,
+        since: datetime | None = None,
+        till: datetime | None = None,
+    ) -> list[Post]:
         """Fetch recent videos from a YouTube channel.
 
         Args:
             username: YouTube channel handle (e.g. @mkbhd) or channel name.
             limit: Maximum number of videos to fetch.
+            since: Start date (inclusive). Defaults to today.
+            till: End date (inclusive). Defaults to today.
         """
         self._ensure_import()
 
         import yt_dlp  # noqa: PLC0415
 
-        today = datetime.now(timezone.utc).date()
+        since = since or datetime.now(timezone.utc)
+        till = till or datetime.now(timezone.utc)
         posts: list[Post] = []
 
         url = f"https://www.youtube.com/@{username.lstrip('@')}/videos"
@@ -57,7 +66,7 @@ class YouTubeScraper(Scraper):
             'no_warnings': True,
             'extract_flat': False,
             'playlistend': limit,
-            'dateafter': today.isoformat(),
+            'dateafter': since.date().isoformat(),
         }
 
         try:
@@ -97,7 +106,7 @@ class YouTubeScraper(Scraper):
                     except (ValueError, TypeError, OSError):
                         continue
 
-                    if post_date.date() != today:
+                    if not (since.date() <= post_date.date() <= till.date()):
                         continue
 
                     title = (entry.get('title') or '').strip()

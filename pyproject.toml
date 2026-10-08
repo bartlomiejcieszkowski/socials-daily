@@ -30,6 +30,9 @@ hikerapi = ["hikerapi>=1.8.2"]
 xpoz = ["xpoz>=0.8.0"]
 youtube = ["yt-dlp>=2024.0.0"]
 
+[project.scripts]
+socials-daily = "socials_daily.__main__:main"
+
 [project.urls]
 "Homepage" = "https://github.com/bartlomiejcieszkowski/socials-daily"
 "Bug Tracker" = "https://github.com/bartlomiejcieszkowski/socials-daily/issues"

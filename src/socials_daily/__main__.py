@@ -135,12 +135,14 @@ def generate_summary(
     accounts: dict[str, dict],
     api_key: str | None,
     cli_backend: str | None,
+    since: datetime,
+    till: datetime,
     output_dir: Path = OUTPUT_DIR,
 ) -> Path:
     """Fetch posts from all accounts (grouped by platform) and write a daily summary."""
     seen = load_seen()
     output_dir.mkdir(parents=True, exist_ok=True)
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    today = since.strftime("%Y-%m-%d")
     output_file = output_dir / f"daily-summary-{today}.md"
 
     all_posts: list[dict] = []
@@ -164,7 +166,7 @@ def generate_summary(
             log.info("  Using %s: %s (resolved from %s)", "provider" if scraper_backend in _PROVIDER_BACKENDS else "scraper", scraper.name, scraper_backend)
 
             try:
-                posts = scraper.fetch_posts(handle, limit=limit)
+                posts = scraper.fetch_posts(handle, limit=limit, since=since, till=till)
             except Exception as exc:
                 log.warning("  Failed to fetch from %s/%s: %s", platform, handle, exc)
                 posts = []
@@ -232,6 +234,21 @@ def main() -> None:
         default=None,
         help="Override scraper backend for all platforms (takes precedence over platform config)",
     )
+    scrape_parser.add_argument(
+        "--since",
+        default=None,
+        help="Start date for scraping (YYYY-MM-DD, inclusive). Default: today.",
+    )
+    scrape_parser.add_argument(
+        "--till",
+        default=None,
+        help="End date for scraping (YYYY-MM-DD, inclusive). Default: today.",
+    )
+    scrape_parser.add_argument(
+        "--day",
+        default=None,
+        help="Scrape a specific day (YYYY-MM-DD). Overrides --since and --till.",
+    )
 
     # add
     add_parser = sub.add_parser("add", help="Add an account to the list")
@@ -258,7 +275,26 @@ def main() -> None:
             backend = config.get("backend", platform)
             log.info("  %s: %d account(s) [backend: %s]", platform, len(config.get("accounts", [])), backend)
 
-        output = generate_summary(accounts, api_key=args.api_key, cli_backend=args.backend)
+        # Parse date arguments
+        if args.day:
+            day = datetime.strptime(args.day, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            since = day
+            till = day
+        else:
+            since = datetime.now(timezone.utc)
+            till = datetime.now(timezone.utc)
+            if args.since:
+                since = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            if args.till:
+                till = datetime.strptime(args.till, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+
+        output = generate_summary(
+            accounts,
+            api_key=args.api_key,
+            cli_backend=args.backend,
+            since=since,
+            till=till,
+        )
         log.info("Done! Summary: %s", output)
 
 

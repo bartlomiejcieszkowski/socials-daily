@@ -43,7 +43,13 @@ class RSSScraper(Scraper):
                 pass
         return None
 
-    def fetch_posts(self, username: str, limit: int = 10) -> list[Post]:
+    def fetch_posts(
+        self,
+        username: str,
+        limit: int = 10,
+        since: datetime | None = None,
+        till: datetime | None = None,
+    ) -> list[Post]:
         """Fetch recent posts from an RSS/Atom feed."""
         try:
             feed = feedparser.parse(username)
@@ -55,7 +61,8 @@ class RSSScraper(Scraper):
             log.warning("RSS feed %s returned errors: %s", username, feed.bozo_exception)
             return []
 
-        today = datetime.now(timezone.utc).date()
+        since = since or datetime.now(timezone.utc)
+        till = till or datetime.now(timezone.utc)
         posts: list[Post] = []
 
         for entry in feed.entries:
@@ -66,7 +73,7 @@ class RSSScraper(Scraper):
             if post_date is None:
                 continue
 
-            if post_date.date() != today:
+            if not (since.date() <= post_date.date() <= till.date()):
                 continue
 
             # Caption: summary > content (first item) > title

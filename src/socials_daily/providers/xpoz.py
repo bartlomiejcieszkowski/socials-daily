@@ -28,9 +28,16 @@ class XpozProvider(Scraper):
             log.warning("No XPOZ_API_KEY set — API calls will likely fail")
         self._client = XpozClient(self._api_key)
 
-    def fetch_posts(self, username: str, limit: int = 10) -> list[Post]:
+    def fetch_posts(
+        self,
+        username: str,
+        limit: int = 10,
+        since: datetime | None = None,
+        till: datetime | None = None,
+    ) -> list[Post]:
         """Fetch recent posts from a public account."""
-        today = datetime.now(timezone.utc).date()
+        since = since or datetime.now(timezone.utc)
+        till = till or datetime.now(timezone.utc)
         posts: list[Post] = []
 
         try:
@@ -49,10 +56,10 @@ class XpozProvider(Scraper):
             ts = post.timestamp
             if ts:
                 try:
-                    post_date = datetime.fromisoformat(ts.replace("Z", "+00:00")).date()
+                    post_date = datetime.fromisoformat(ts.replace("Z", "+00:00"))
                 except (ValueError, AttributeError):
                     continue
-                if post_date != today:
+                if not (since.date() <= post_date.date() <= till.date()):
                     continue
 
             caption = (post.caption or "").strip()
