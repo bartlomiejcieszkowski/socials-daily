@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 OUTPUT_DIR = Path("output")
 ACCOUNTS_FILE = Path("accounts.json")
 SEEN_FILE = Path(".seen.json")
+LAST_RUN_FILE = Path(".last.socials-daily")
 POSTS_LIMIT = 10  # default posts per account
 
 SUPPORTED_PLATFORMS = ["bluesky", "instagram", "reddit", "rss", "youtube"]
@@ -38,6 +39,22 @@ def load_seen() -> set[str]:
 def save_seen(seen: set[str]) -> None:
     """Save seen post permalinks to the seen file."""
     SEEN_FILE.write_text(json.dumps(list(seen), indent=2, ensure_ascii=False), encoding="utf-8")
+
+
+def save_last_run_date(date: datetime) -> None:
+    """Save the last scrape date to .last.socials-daily."""
+    LAST_RUN_FILE.write_text(date.strftime("%Y-%m-%d"), encoding="utf-8")
+
+
+def load_last_run_date() -> datetime | None:
+    """Load the last scrape date from .last.socials-daily."""
+    if not LAST_RUN_FILE.exists():
+        return None
+    try:
+        date_str = LAST_RUN_FILE.read_text(encoding="utf-8").strip()
+        return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except (ValueError, OSError):
+        return None
 
 
 def load_accounts(path: Path = ACCOUNTS_FILE) -> dict[str, dict]:
@@ -281,10 +298,18 @@ def main() -> None:
             since = day
             till = day
         else:
-            since = datetime.now(timezone.utc)
-            till = datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc)
+            till = now
             if args.since:
                 since = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            else:
+                last = load_last_run_date()
+                if last is not None:
+                    since = last
+                    log.info("Scraping from %s (last run) to %s (today)", since.strftime("%Y-%m-%d"), till.strftime("%Y-%m-%d"))
+                else:
+                    since = now
+                    log.info("No previous run found, scraping for %s only", since.strftime("%Y-%m-%d"))
             if args.till:
                 till = datetime.strptime(args.till, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
@@ -295,6 +320,7 @@ def main() -> None:
             since=since,
             till=till,
         )
+        save_last_run_date(till)
         log.info("Done! Summary: %s", output)
 
 
