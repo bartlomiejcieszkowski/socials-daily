@@ -13,6 +13,8 @@ from pathlib import Path
 
 from .providers import _PROVIDER_BACKENDS, create_provider  # type: ignore[import-not-found]
 from .scrapers import create_scraper
+from .scrapers.base import Post
+from .transformers import list_transformers, load_all, get_transformer
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -111,6 +113,52 @@ def save_accounts(accounts: dict[str, dict], path: Path = ACCOUNTS_FILE) -> None
     path.write_text(json.dumps(accounts, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def load_pipelines(path: Path = Path("pipelines.json")) -> dict:
+    """Load pipeline configuration from pipelines.json."""
+    if not path.exists():
+        return {"pipelines": {"default": {"transformers": [], "output": ["markdown", "json"]}}}
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if "pipelines" not in data:
+            return {"pipelines": {"default": {"transformers": [], "output": ["markdown", "json"]}}}
+        return data
+    except (json.JSONDecodeError, OSError):
+        return {"pipelines": {"default": {"transformers": [], "output": ["markdown", "json"]}}}
+
+
+def run_pipeline(
+    posts: list[Post],
+    pipeline_name: str = "default",
+    config_path: Path = Path("pipelines.json"),
+) -> list[Post]:
+    """Run the transformer pipeline on a list of posts."""
+    pipelines = load_pipelines(config_path)
+    pipeline = pipelines.get("pipelines", {}).get(pipeline_name, {})
+    transformer_names = pipeline.get("transformers", [])
+
+    if not transformer_names:
+        return posts
+
+    log.info("Running pipeline '%s' with transformers: %s", pipeline_name, transformer_names)
+    available = list_transformers()
+    transformed = posts
+
+    for name in transformer_names:
+        cls = get_transformer(name)
+        if cls is None:
+            log.warning("Transformer '%s' not found (available: %s), skipping", name, available)
+            continue
+        try:
+            instance = cls()
+            transformed = instance.transform(transformed)
+            log.info("  Applied transformer: %s (%d posts in → %d posts out)", name, len(transformed) if transformed else 0, len(transformed))
+        except Exception as exc:
+            log.warning("  Transformer '%s' failed: %s, skipping", name, exc)
+
+    return transformed
+
+
 def add_account(
     handle: str,
     platform: str,
@@ -160,8 +208,9 @@ def generate_summary(
     seen = load_seen()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    all_posts: list[dict] = []
-    by_account: dict[str, list[dict]] = defaultdict(list)
+    # Fetch all posts (raw, before dedup)
+    raw_posts: list[Post] = []
+    by_account: dict[str, list[Post]] = defaultdict(list)
     total_accounts = sum(len(v.get("accounts", [])) for v in accounts.values())
     index = 0
 
@@ -187,22 +236,22 @@ def generate_summary(
                 posts = []
 
             for post in posts:
+                post.platform = platform
+                post.account = handle
+                by_account[f"{platform}/{handle}"].append(post)
                 if post.link not in seen:
                     seen.add(post.link)
-                    all_posts.append({
-                        "platform": platform,
-                        "account": handle,
-                        "caption": post.caption,
-                        "link": post.link,
-                        "date": post.date.isoformat(),
-                    })
-                    by_account[f"{platform}/{handle}"].append({
-                        "caption": post.caption,
-                        "link": post.link,
-                        "date": post.date.isoformat(),
-                    })
+                    raw_posts.append(post)
             # Pace between accounts (instaloader needs this, APIs don't but safe to keep)
             time.sleep(3)
+
+    # Run transformer pipeline on all new posts
+    if raw_posts:
+        transformed = run_pipeline(raw_posts, "default")
+    else:
+        transformed = []
+
+    log.info("Pipeline complete: %d posts in → %d posts out", len(raw_posts), len(transformed))
 
     # Generate all dates in range
     current = since.date()
@@ -212,10 +261,10 @@ def generate_summary(
         all_dates.append(current.isoformat())
         current += timedelta(days=1)
 
-    # Group posts by date
-    by_date: dict[str, list[dict]] = defaultdict(list)
-    for post in all_posts:
-        date_str = datetime.fromisoformat(post["date"]).strftime("%Y-%m-%d")
+    # Group transformed posts by date
+    by_date: dict[str, list[Post]] = defaultdict(list)
+    for post in transformed:
+        date_str = post.date.strftime("%Y-%m-%d")
         by_date[date_str].append(post)
 
     # Write one file per day (even if empty)
@@ -233,32 +282,39 @@ def generate_summary(
             lines.append("*No new posts today.*")
         else:
             for account_key, account_posts in sorted(by_account.items()):
-                # Filter to only posts from this day
+                # Filter to only posts from this day that survived the pipeline
                 day_account_posts = [
                     p for p in account_posts
-                    if datetime.fromisoformat(p["date"]).strftime("%Y-%m-%d") == date_str
+                    if p.date.strftime("%Y-%m-%d") == date_str and p.link in {p2.link for p2 in day_posts}
                 ]
                 if not day_account_posts:
                     continue
                 lines.append(f"## {account_key}")
                 lines.append("")
                 for post in day_account_posts:
-                    caption = post["caption"]
+                    caption = post.caption
                     if caption:
-                        lines.append(f"- {caption} — [{post['link']}]({post['link']})")
+                        lines.append(f"- {caption} — [{post.link}]({post.link})")
                     else:
-                        lines.append(f"- _No caption_ — [{post['link']}]({post['link']})")
+                        lines.append(f"- _No caption_ — [{post.link}]({post.link})")
                 lines.append("")
 
         output_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        json_file.write_text(json.dumps(day_posts, indent=2, ensure_ascii=False), encoding="utf-8")
+        json_file.write_text(json.dumps([{
+            "platform": p.platform,
+            "account": p.account,
+            "caption": p.caption,
+            "link": p.link,
+            "date": p.date.isoformat(),
+            "tags": p.tags,
+        } for p in day_posts], indent=2, ensure_ascii=False), encoding="utf-8")
         written_files.append(output_file)
 
     save_seen(seen)
     log.info(
         "Summary written to %s (%d new posts from %d accounts, %d total tracked)",
         written_files[-1] if written_files else "(no new posts)",
-        len(all_posts), len(by_account), len(seen),
+        len(transformed), len(by_account), len(seen),
     )
     return written_files
 

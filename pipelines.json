@@ -1,0 +1,8 @@
+{
+  "pipelines": {
+    "default": {
+      "transformers": [],
+      "output": ["markdown", "json"]
+    }
+  }
+}
