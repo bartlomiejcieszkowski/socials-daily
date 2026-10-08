@@ -8,7 +8,7 @@ import logging
 import sys
 import time
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from .providers import _PROVIDER_BACKENDS, create_provider  # type: ignore[import-not-found]
@@ -155,12 +155,10 @@ def generate_summary(
     since: datetime,
     till: datetime,
     output_dir: Path = OUTPUT_DIR,
-) -> Path:
+) -> list[Path]:
     """Fetch posts from all accounts (grouped by platform) and write a daily summary."""
     seen = load_seen()
     output_dir.mkdir(parents=True, exist_ok=True)
-    today = since.strftime("%Y-%m-%d")
-    output_file = output_dir / f"daily-summary-{today}.md"
 
     all_posts: list[dict] = []
     by_account: dict[str, list[dict]] = defaultdict(list)
@@ -206,37 +204,63 @@ def generate_summary(
             # Pace between accounts (instaloader needs this, APIs don't but safe to keep)
             time.sleep(3)
 
-    # Write markdown summary
-    lines: list[str] = []
-    lines.append(f"# Socials Daily Summary — {today}")
-    lines.append("")
+    # Generate all dates in range
+    current = since.date()
+    till_date = till.date()
+    all_dates: list[str] = []
+    while current <= till_date:
+        all_dates.append(current.isoformat())
+        current += timedelta(days=1)
 
-    if not all_posts:
-        lines.append("*No new posts today.*")
-    else:
-        for account_key, account_posts in sorted(by_account.items()):
-            lines.append(f"## {account_key}")
-            lines.append("")
-            for post in account_posts:
-                caption = post["caption"]
-                if caption:
-                    lines.append(f"- {caption} — [{post['link']}]({post['link']})")
-                else:
-                    lines.append(f"- _No caption_ — [{post['link']}]({post['link']})")
-            lines.append("")
+    # Group posts by date
+    by_date: dict[str, list[dict]] = defaultdict(list)
+    for post in all_posts:
+        date_str = datetime.fromisoformat(post["date"]).strftime("%Y-%m-%d")
+        by_date[date_str].append(post)
 
-    output_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    # Write one file per day (even if empty)
+    written_files: list[Path] = []
+    for date_str in all_dates:
+        day_posts = by_date.get(date_str, [])
+        output_file = output_dir / f"daily-summary-{date_str}.md"
+        json_file = output_dir / f"daily-summary-{date_str}.json"
 
-    # Also write a JSON version for programmatic use
-    json_file = output_dir / f"daily-summary-{today}.json"
-    json_file.write_text(json.dumps(all_posts, indent=2, ensure_ascii=False), encoding="utf-8")
+        lines: list[str] = []
+        lines.append(f"# Socials Daily Summary — {date_str}")
+        lines.append("")
+
+        if not day_posts:
+            lines.append("*No new posts today.*")
+        else:
+            for account_key, account_posts in sorted(by_account.items()):
+                # Filter to only posts from this day
+                day_account_posts = [
+                    p for p in account_posts
+                    if datetime.fromisoformat(p["date"]).strftime("%Y-%m-%d") == date_str
+                ]
+                if not day_account_posts:
+                    continue
+                lines.append(f"## {account_key}")
+                lines.append("")
+                for post in day_account_posts:
+                    caption = post["caption"]
+                    if caption:
+                        lines.append(f"- {caption} — [{post['link']}]({post['link']})")
+                    else:
+                        lines.append(f"- _No caption_ — [{post['link']}]({post['link']})")
+                lines.append("")
+
+        output_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        json_file.write_text(json.dumps(day_posts, indent=2, ensure_ascii=False), encoding="utf-8")
+        written_files.append(output_file)
 
     save_seen(seen)
     log.info(
         "Summary written to %s (%d new posts from %d accounts, %d total tracked)",
-        output_file, len(all_posts), len(by_account), len(seen),
+        written_files[-1] if written_files else "(no new posts)",
+        len(all_posts), len(by_account), len(seen),
     )
-    return output_file
+    return written_files
 
 
 def main() -> None:
