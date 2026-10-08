@@ -20,6 +20,3 @@ output/
 
 # Account list (personal data)
 accounts.json
-
-# Pipeline config (user preference)
-pipelines.json
