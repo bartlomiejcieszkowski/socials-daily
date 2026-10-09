@@ -113,18 +113,27 @@ def save_accounts(accounts: dict[str, dict], path: Path = ACCOUNTS_FILE) -> None
     path.write_text(json.dumps(accounts, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+DEFAULT_PIPELINES = {
+    "pipelines": {
+        "default": {
+            "transformers": ["filter_no_caption", "html_escape", "write_markdown"]
+        }
+    }
+}
+
+
 def load_pipelines(path: Path = Path("pipelines.json")) -> dict:
     """Load pipeline configuration from pipelines.json."""
     if not path.exists():
-        return {"pipelines": {"default": {"transformers": [], "output": ["markdown", "json"]}}}
+        return DEFAULT_PIPELINES
 
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         if "pipelines" not in data:
-            return {"pipelines": {"default": {"transformers": [], "output": ["markdown", "json"]}}}
+            return DEFAULT_PIPELINES
         return data
     except (json.JSONDecodeError, OSError):
-        return {"pipelines": {"default": {"transformers": [], "output": ["markdown", "json"]}}}
+        return DEFAULT_PIPELINES
 
 
 def run_pipeline(

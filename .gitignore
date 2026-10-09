@@ -20,3 +20,7 @@ output/
 
 # Account list (personal data)
 accounts.json
+
+# Runtime state
+.last.socials-daily
+socials.db
