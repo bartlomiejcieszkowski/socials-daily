@@ -4,8 +4,7 @@
       "transformers": [
         "filter_no_caption",
         "html_escape",
-        "write_markdown",
-        "write_sqlite"
+        "write_markdown"
       ]
     }
   }
