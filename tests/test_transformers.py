@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from socials_daily.transformers import list_transformers, get_transformer
+from socials_daily.transformers.base import Post
 
 
 class TestTransformerDiscovery:
@@ -27,3 +30,23 @@ class TestTransformerDiscovery:
         """list_transformers should return sorted names."""
         names = list_transformers()
         assert names == sorted(names)
+
+    def test_discovers_html_escape(self) -> None:
+        """Auto-discovered local transformers should include html_escape."""
+        names = list_transformers()
+        assert "html_escape" in names
+
+    def test_html_escape_transforms(self) -> None:
+        """html_escape should escape HTML entities in captions."""
+        cls = get_transformer("html_escape")
+        assert cls is not None
+        transformer = cls()
+        posts = [
+            Post(caption="Hello <b>world</b>", link="http://example.com/1", date=datetime.now(timezone.utc)),
+            Post(caption="Safe caption", link="http://example.com/2", date=datetime.now(timezone.utc)),
+            Post(caption="Quotes &amp; stuff", link="http://example.com/3", date=datetime.now(timezone.utc)),
+        ]
+        result = transformer.transform(posts)
+        assert result[0].caption == "Hello &lt;b&gt;world&lt;/b&gt;"
+        assert result[1].caption == "Safe caption"
+        assert result[2].caption == "Quotes &amp;amp; stuff"
