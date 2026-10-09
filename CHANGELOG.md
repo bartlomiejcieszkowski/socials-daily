@@ -78,12 +78,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.3.0] — Planned
+## [0.3.0] — 2026-10-09
 
-- [ ] Improve error handling and logging
-- [ ] Add more social platforms (TikTok, X/Twitter, etc.)
-- [ ] Add `--output-dir` and `--format` CLI flags
-- [ ] Add `console_scripts` entry point (`socials-daily` command)
+### Added
+- **Transformer plugin architecture** — New `transformers/` module with auto-discovery of local `.py` files and pip entry point support via `importlib.metadata.entry_points()`
+- **`pipelines.json`** — Pipeline configuration file with default transformer list and output format selection
+- **`filter_no_caption` transformer** — Removes posts with empty or whitespace-only captions
+- **`html_escape` transformer** — Escapes HTML entities in post captions for safe rendering
+- **`@transformer("name")` decorator** — Simple way to register custom transformers
+- **Auto-resume from last scrape** — `.last.socials-daily` file tracks last run date, scraper resumes from there on next run
+- **`--since`, `--till`, `--day` CLI arguments** — Date range scraping for historical or multi-day summaries
+- **Per-day output files** — One `daily-summary-YYYY-MM-DD.md` and `.json` file per day instead of one file for the whole range
+- **Enhanced `Post` dataclass** — Added `platform`, `account`, and `tags` fields for richer post metadata
+- **Pipeline logging** — Transforms log post counts before/after each transformer
+
+### Changed
+- Output generation now runs through the transformer pipeline before writing files
+- `Post` objects now carry `platform` and `account` metadata throughout the pipeline
+- Default output: one markdown file and one JSON file per day in `output/`
+
+### Fixed
+- Nothing
+
+### Deprecated
+- Nothing
+
+### Removed
+- Nothing
+
+### Security
+- Nothing
+
+### Contributors
+- Bartlomiej Cieszkowski
 
 [Unreleased]: https://github.com/bartlomiejcieszkowski/socials-daily/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/bartlomiejcieszkowski/socials-daily/releases/tag/v0.2.0

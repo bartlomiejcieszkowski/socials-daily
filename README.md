@@ -42,6 +42,12 @@ output/daily-summary-YYYY-MM-DD.json # JSON for programmatic use
 # Default: Bluesky (free, no auth needed)
 python -m socials_daily scrape
 
+# Date range scraping
+python -m socials_daily scrape --since 2026-01-01 --till 2026-01-31
+
+# Single day
+python -m socials_daily scrape --day 2026-01-15
+
 # Instagram (free, rate-limited)
 python -m socials_daily scrape --backend instaloader
 
@@ -114,6 +120,50 @@ API keys are stored in `.socials_daily.config.json` (gitignored). Keys are resol
 1. CLI `--api-key` flag
 2. `.socials_daily.config.json`
 3. Environment variables (`HIKERAPI_TOKEN`, `XPOZ_API_KEY`)
+
+### Pipeline Config (`pipelines.json`)
+
+Control which transformers run on posts before output. Create `pipelines.json` in your project root:
+
+```json
+{
+  "pipelines": {
+    "default": {
+      "transformers": ["filter_no_caption", "html_escape"],
+      "output": ["markdown", "json"]
+    }
+  }
+}
+```
+
+**Available transformers:**
+
+| Transformer | Description |
+|---|---|
+| `filter_no_caption` | Removes posts with empty or whitespace-only captions |
+| `html_escape` | Escapes HTML entities in captions for safe rendering |
+
+**Custom transformers** — Install pip packages that register under `socials_daily.transformers` entry points, or add `.py` files to `src/socials_daily/transformers/` (auto-discovered).
+
+### Transformers
+
+Transformers process posts between scraping and output. Each transformer receives `list[Post]` and returns `list[Post]`. They can filter, enrich, or format posts.
+
+**Create a custom transformer:**
+
+```python
+from socials_daily.transformers.base import Post, Transformer, transformer
+
+@transformer("my_transformer")
+class MyTransformer(Transformer):
+    name = "my_transformer"
+
+    def transform(self, posts: list[Post]) -> list[Post]:
+        # Filter, enrich, or modify posts
+        return [p for p in posts if p.caption]
+```
+
+Register it in `pipelines.json` and it auto-discovers on import.
 
 ## Backends
 
@@ -214,18 +264,23 @@ uv sync -E hikerapi -E xpoz -E youtube
 
 ```
 accounts.json         # Accounts grouped by platform (with optional backend config)
+pipelines.json        # Transformer pipeline config (optional)
 src/socials_daily/    # Source code
 ├── __main__.py       # Entry point
 ├── providers/        # Third-party service providers (require API keys)
 │   ├── hikerapi.py
 │   └── xpoz.py
-└── scrapers/         # Direct scraping (no third-party services)
-    ├── base.py       # Abstract interface
-    ├── bluesky.py
-    ├── instaloader.py
-    ├── reddit.py
-    ├── rss.py
-    └── youtube.py
+├── scrapers/         # Direct scraping (no third-party services)
+│   ├── base.py       # Abstract interface
+│   ├── bluesky.py
+│   ├── instaloader.py
+│   ├── reddit.py
+│   ├── rss.py
+│   └── youtube.py
+└── transformers/     # Post-processing transformers
+    ├── base.py       # Transformer protocol + decorator
+    ├── filter_no_caption.py
+    └── html_escape.py
 output/               # Generated daily summaries
 pyproject.toml        # Project config (uv)
 ```

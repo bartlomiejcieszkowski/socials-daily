@@ -8,26 +8,33 @@ A Python tool that fetches recent posts from public social media accounts and ge
 
 ```
 accounts.json             # Accounts grouped by platform (with optional backend config)
+pipelines.json            # Transformer pipeline config (optional)
 pyproject.toml            # uv project config
 src/socials_daily/
 ├── __main__.py           # CLI entry point, orchestration
 ├── config.py             # API key resolution (explicit > config > env)
-├── providers/          # Third-party service providers (require API keys)
-│   ├── __init__.py     # Factory: create_provider(name, api_key)
-│   ├── hikerapi.py     # REST API, pay-per-request (httpx)
-│   └── xpoz.py         # Pre-indexed DB (xpoz SDK)
-└── scrapers/
-    ├── __init__.py     # Factory: create_scraper(platform, api_key, backend)
-    ├── base.py         # Abstract interface: Scraper protocol + Post dataclass
-    ├── bluesky.py      # Bluesky AT Protocol (public, no auth)
-    ├── instaloader.py  # Free, rate-limited (instaloader library)
-    ├── reddit.py       # Reddit JSON API (httpx, no auth)
-    ├── rss.py          # RSS/Atom feeds (feedparser)
-    └── youtube.py      # YouTube channel videos (yt-dlp, optional)
+├── providers/            # Third-party service providers (require API keys)
+│   ├── __init__.py       # Factory: create_provider(name, api_key)
+│   ├── hikerapi.py       # REST API, pay-per-request (httpx)
+│   └── xpoz.py           # Pre-indexed DB (xpoz SDK)
+├── scrapers/             # Direct scraping (no third-party services)
+│   ├── __init__.py       # Factory: create_scraper(platform, api_key, backend)
+│   ├── base.py           # Abstract interface: Scraper protocol + Post dataclass
+│   ├── bluesky.py        # Bluesky AT Protocol (public, no auth)
+│   ├── instaloader.py    # Free, rate-limited (instaloader library)
+│   ├── reddit.py         # Reddit JSON API (httpx, no auth)
+│   ├── rss.py            # RSS/Atom feeds (feedparser)
+│   └── youtube.py        # YouTube channel videos (yt-dlp, optional)
+└── transformers/         # Post-processing transformers
+    ├── __init__.py       # Loader: auto-discover + entry points
+    ├── base.py           # Transformer protocol + @transformer decorator
+    ├── filter_no_caption.py
+    └── html_escape.py
 output/                   # Generated daily summaries (gitignored)
   ├── daily-summary-YYYY-MM-DD.md
   └── daily-summary-YYYY-MM-DD.json
 .seen.json                # Post permalink dedup tracker (gitignored)
+.last.socials-daily       # Last scrape date for auto-resume (gitignored)
 .socials_daily.config.json    # API keys (gitignored)
 ```
 
@@ -41,11 +48,15 @@ accounts.json ──→ load_accounts()  ──→ {platform: {backend?, account
                 create_scraper(platform, backend=backend) ──→ scraper or provider
                         │
                 for account in config.accounts:
-                    fetch_posts() ──→ list[Post] (today only)
+                    fetch_posts(since, till) ──→ list[Post] (date range)
+                        │
+                 enrich Post with platform/account metadata
                         │
                  deduplicate against .seen.json
                         │
-                 write output/
+                 run_pipeline() ──→ transformer plugin system
+                        │
+                 write one file per day:
                  ├── daily-summary-YYYY-MM-DD.md
                  ├── daily-summary-YYYY-MM-DD.json
                  └── .seen.json (updated)
@@ -59,9 +70,14 @@ accounts.json ──→ load_accounts()  ──→ {platform: {backend?, account
 - **`scrape`** (default) — fetch posts from all accounts (all platforms)
   - `--api-key` — override API key (highest priority)
   - `--backend` — override scraper backend for all platforms (takes precedence over platform config)
+  - `--since YYYY-MM-DD` — start date for scraping (default: today)
+  - `--till YYYY-MM-DD` — end date for scraping (default: today)
+  - `--day YYYY-MM-DD` — shortcut for `--since` and `--till` same day
 - **`add <handle> [--platform bluesky|instagram|...] [--limit N] [--backend X]`** — append handle to `accounts.json`
 
-Orchestrates the flow: load accounts → create scraper → fetch posts → deduplicate → write output.
+Orchestrates the flow: load accounts → create scraper → fetch posts → deduplicate → run pipeline → write output.
+
+**Auto-resume**: On first run, saves date to `.last.socials-daily`. Subsequent runs without `--since`/`--till`/`--day` resume from the last scrape date.
 
 ### 2. Scraper Layer (`scrapers/`)
 
