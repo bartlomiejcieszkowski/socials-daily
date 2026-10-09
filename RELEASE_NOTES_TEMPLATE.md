@@ -21,7 +21,7 @@
 - Description of security-related changes
 
 ### Contributors
-- Name(s)
+- [@github-handle](https://github.com/github-handle)
 
 ---
 

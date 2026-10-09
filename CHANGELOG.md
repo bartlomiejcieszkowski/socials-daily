@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Nothing
 
 ### Contributors
-- Bartlomiej Cieszkowski
+- [@bartlomiejcieszkowski](https://github.com/bartlomiejcieszkowski)
 
 ---
 
@@ -74,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Nothing
 
 ### Contributors
-- Bartlomiej Cieszkowski
+- [@bartlomiejcieszkowski](https://github.com/bartlomiejcieszkowski)
 
 ---
 
@@ -110,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Nothing
 
 ### Contributors
-- Bartlomiej Cieszkowski
+- [@bartlomiejcieszkowski](https://github.com/bartlomiejcieszkowski)
 
 [Unreleased]: https://github.com/bartlomiejcieszkowski/socials-daily/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/bartlomiejcieszkowski/socials-daily/releases/tag/v0.2.0
