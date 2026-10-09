@@ -8,6 +8,8 @@ from .base import Post, Transformer, transformer
 
 # Match any URL with a scheme (http, https, ftp, ssh, etc.)
 _URL_RE = re.compile(r'[a-zA-Z][a-zA-Z0-9+.-]*://\S+')
+# Standalone :// without a scheme prefix
+_STANDALONE_SCHEME_RE = re.compile(r'(?<!\S)://\S+')
 _EMAIL_RE = re.compile(r'\S+@\S+\.\S+')
 _IP_RE = re.compile(r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b')
 
@@ -66,6 +68,9 @@ class DefangUrlTransformer(Transformer):
             if post.caption:
                 # Email first (URLs contain email patterns)
                 post.caption = _EMAIL_RE.sub(lambda m: _defang_email(m.group()), post.caption)
+                # URLs with scheme prefix
                 post.caption = _URL_RE.sub(lambda m: _defang_url(m.group()), post.caption)
+                # Standalone :// without scheme prefix
+                post.caption = _STANDALONE_SCHEME_RE.sub(lambda m: _defang_url(m.group()), post.caption)
                 post.caption = _IP_RE.sub(lambda m: _defang_ip(m.group()), post.caption)
         return posts

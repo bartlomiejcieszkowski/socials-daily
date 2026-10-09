@@ -166,3 +166,16 @@ class TestDefangUrl:
         )]
         result = transformer.transform(posts)
         assert result[0].caption == "Download ftp[://]files[.]example[.]com[/]pub[/]data[.]zip"
+
+    def test_orphan_scheme_not_defanged(self) -> None:
+        """:// without a scheme prefix should still be defanged."""
+        cls = get_transformer("defang_url")
+        assert cls is not None
+        transformer = cls()
+        posts = [Post(
+            caption="what it should do ://is.it.defanged ?",
+            link="http://example.com",
+            date=datetime.now(timezone.utc),
+        )]
+        result = transformer.transform(posts)
+        assert result[0].caption == "what it should do [://]is[.]it[.]defanged ?"
