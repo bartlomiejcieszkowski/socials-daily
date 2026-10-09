@@ -7,7 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.2.0] — 2026-10-07
+## [0.3.1] — 2026-10-09
+
+### Added
+- **Pipeline chain with passthrough** — Transformers can now set `passthrough = True` so their output doesn't break the chain (used by output transformers)
+- **`write_markdown` output transformer** — Writes daily markdown and JSON files as a pipeline step instead of inline code
+- **`write_sqlite` output transformer** — Writes posts to a SQLite database with deduplication
+- **`defang_url` transformer** — Obfuscates URLs, emails, and IP addresses for safe display (converts `://` → `[://]`, `.` → `[.]`, etc.)
+- **`DEFAULT_PIPELINES` constant** — Code-level default pipeline config so pip-installed users get a working pipeline without a `pipelines.json` file
+- **`fetch_posts()` function** — Extracted fetching, scraping, and deduplication into a standalone function
+- **`process_pipeline()` function** — Extracted pipeline execution into a standalone function
+- **`generate_summary()`** — Now orchestrates fetch → process → persist instead of doing everything inline
+
+### Changed
+- Default pipeline now includes `filter_no_caption`, `html_escape`, `defang_url`, and `write_markdown`
+- Summary writing delegated entirely to the `write_markdown` transformer
+- Pipeline code fallback synced with `pipelines.json` default config
+
+### Fixed
+- Nothing
+
+### Deprecated
+- Nothing
+
+### Removed
+- Nothing
+
+### Security
+- Nothing
+
+### Contributors
+- [@bartlomiejcieszkowski](https://github.com/bartlomiejcieszkowski)
+
+---
+
+## [0.3.0] — 2026-10-09
 
 ### Added
 - Test suite with pytest — 69 tests covering config, accounts, deduplication, scrapers, providers, and summary generation
