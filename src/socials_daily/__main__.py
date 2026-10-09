@@ -116,7 +116,7 @@ def save_accounts(accounts: dict[str, dict], path: Path = ACCOUNTS_FILE) -> None
 DEFAULT_PIPELINES = {
     "pipelines": {
         "default": {
-            "transformers": ["filter_no_caption", "html_escape", "write_markdown"]
+            "transformers": ["filter_no_caption", "html_escape", "defang_url", "write_markdown"]
         }
     }
 }

@@ -4,6 +4,7 @@
       "transformers": [
         "filter_no_caption",
         "html_escape",
+        "defang_url",
         "write_markdown"
       ]
     }

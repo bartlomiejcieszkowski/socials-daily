@@ -50,3 +50,43 @@ class TestTransformerDiscovery:
         assert result[0].caption == "Hello &lt;b&gt;world&lt;/b&gt;"
         assert result[1].caption == "Safe caption"
         assert result[2].caption == "Quotes &amp;amp; stuff"
+
+
+class TestDefangUrl:
+    """Tests for defang_url transformer."""
+
+    def test_defang_http(self) -> None:
+        """http:// should become hxxp://"""
+        cls = get_transformer("defang_url")
+        assert cls is not None
+        transformer = cls()
+        posts = [Post(caption="Visit hxxp://example.com", link="http://example.com", date=datetime.now(timezone.utc))]
+        result = transformer.transform(posts)
+        assert result[0].caption == "Visit hxxp[://]example[.]com"
+
+    def test_defang_https(self) -> None:
+        """https:// should become hxxps://"""
+        cls = get_transformer("defang_url")
+        assert cls is not None
+        transformer = cls()
+        posts = [Post(caption="hxxps://secure.com", link="https://secure.com", date=datetime.now(timezone.utc))]
+        result = transformer.transform(posts)
+        assert result[0].caption == "hxxps[://]secure[.]com"
+
+    def test_defang_email(self) -> None:
+        """@ should become [@]"""
+        cls = get_transformer("defang_url")
+        assert cls is not None
+        transformer = cls()
+        posts = [Post(caption="Contact user@example.com", link="http://example.com", date=datetime.now(timezone.utc))]
+        result = transformer.transform(posts)
+        assert result[0].caption == "Contact user[@]example[.]com"
+
+    def test_no_caption_unchanged(self) -> None:
+        """Posts with empty caption should pass through unchanged."""
+        cls = get_transformer("defang_url")
+        assert cls is not None
+        transformer = cls()
+        posts = [Post(caption="", link="http://example.com", date=datetime.now(timezone.utc))]
+        result = transformer.transform(posts)
+        assert result[0].caption == ""
