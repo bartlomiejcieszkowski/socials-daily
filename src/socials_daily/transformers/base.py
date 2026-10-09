@@ -29,9 +29,13 @@ class Transformer(Protocol):
 
     Receives a list of posts and returns a (possibly modified) list.
     Transformers can filter, enrich, or format posts.
+
+    Output transformers (e.g. write_markdown) set ``passthrough = True``
+    so the pipeline doesn't feed their output to the next transformer.
     """
 
     name: str
+    passthrough: bool = False  # output transformers set True to not break the chain
 
     def transform(self, posts: list[Post]) -> list[Post]:
         """Transform the given posts.

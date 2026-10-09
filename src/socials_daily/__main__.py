@@ -8,7 +8,7 @@ import logging
 import sys
 import time
 from collections import defaultdict
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .providers import _PROVIDER_BACKENDS, create_provider  # type: ignore[import-not-found]
@@ -143,6 +143,7 @@ def run_pipeline(
     log.info("Running pipeline '%s' with transformers: %s", pipeline_name, transformer_names)
     available = list_transformers()
     transformed = posts
+    last_useful = posts
 
     for name in transformer_names:
         cls = get_transformer(name)
@@ -151,8 +152,13 @@ def run_pipeline(
             continue
         try:
             instance = cls()
-            transformed = instance.transform(transformed)
-            log.info("  Applied transformer: %s (%d posts in → %d posts out)", name, len(transformed) if transformed else 0, len(transformed))
+            result = instance.transform(last_useful)
+            if instance.passthrough:
+                log.info("  Applied transformer: %s (%d posts in → %d posts out) [passthrough]", name, len(last_useful), len(result))
+            else:
+                last_useful = result
+                transformed = result
+                log.info("  Applied transformer: %s (%d posts in → %d posts out)", name, len(last_useful) if last_useful else 0, len(result))
         except Exception as exc:
             log.warning("  Transformer '%s' failed: %s, skipping", name, exc)
 
@@ -196,21 +202,28 @@ def add_account(
     )
 
 
-def generate_summary(
+def fetch_posts(
     accounts: dict[str, dict],
     api_key: str | None,
     cli_backend: str | None,
     since: datetime,
     till: datetime,
-    output_dir: Path = OUTPUT_DIR,
-) -> list[Path]:
-    """Fetch posts from all accounts (grouped by platform) and write a daily summary."""
-    seen = load_seen()
+    seen: set[str] | None = None,
+) -> tuple[list[Post], set[str], dict[str, int]]:
+    """Fetch posts from all accounts, deduplicate, and return new posts.
+
+    Returns:
+        (new_posts, updated_seen, posts_per_account) where
+        posts_per_account maps "platform/handle" -> count of new posts.
+    """
+    if seen is None:
+        seen = load_seen()
+
+    output_dir = OUTPUT_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Fetch all posts (raw, before dedup)
-    raw_posts: list[Post] = []
-    by_account: dict[str, list[Post]] = defaultdict(list)
+    new_posts: list[Post] = []
+    posts_per_account: dict[str, int] = {}
     total_accounts = sum(len(v.get("accounts", [])) for v in accounts.values())
     index = 0
 
@@ -235,88 +248,62 @@ def generate_summary(
                 log.warning("  Failed to fetch from %s/%s: %s", platform, handle, exc)
                 posts = []
 
+            account_new = 0
             for post in posts:
                 post.platform = platform
                 post.account = handle
-                by_account[f"{platform}/{handle}"].append(post)
                 if post.link not in seen:
                     seen.add(post.link)
-                    raw_posts.append(post)
+                    new_posts.append(post)
+                    account_new += 1
+            if account_new > 0:
+                posts_per_account[f"{platform}/{handle}"] = account_new
             # Pace between accounts (instaloader needs this, APIs don't but safe to keep)
             time.sleep(3)
 
-    # Run transformer pipeline on all new posts
-    if raw_posts:
-        transformed = run_pipeline(raw_posts, "default")
-    else:
-        transformed = []
+    return new_posts, seen, posts_per_account
 
-    log.info("Pipeline complete: %d posts in → %d posts out", len(raw_posts), len(transformed))
 
-    # Generate all dates in range
-    current = since.date()
-    till_date = till.date()
-    all_dates: list[str] = []
-    while current <= till_date:
-        all_dates.append(current.isoformat())
-        current += timedelta(days=1)
+def process_pipeline(
+    posts: list[Post],
+    pipeline_name: str = "default",
+) -> list[Post]:
+    """Run the transformer pipeline on a list of posts.
 
-    # Group transformed posts by date
-    by_date: dict[str, list[Post]] = defaultdict(list)
-    for post in transformed:
-        date_str = post.date.strftime("%Y-%m-%d")
-        by_date[date_str].append(post)
+    Returns the transformed post list after running all pipeline transformers.
+    """
+    if not posts:
+        return []
 
-    # Write one file per day (even if empty)
-    written_files: list[Path] = []
-    for date_str in all_dates:
-        day_posts = by_date.get(date_str, [])
-        output_file = output_dir / f"daily-summary-{date_str}.md"
-        json_file = output_dir / f"daily-summary-{date_str}.json"
+    log.info("Running pipeline '%s' on %d posts", pipeline_name, len(posts))
+    return run_pipeline(posts, pipeline_name)
 
-        lines: list[str] = []
-        lines.append(f"# Socials Daily Summary — {date_str}")
-        lines.append("")
 
-        if not day_posts:
-            lines.append("*No new posts today.*")
-        else:
-            for account_key, account_posts in sorted(by_account.items()):
-                # Filter to only posts from this day that survived the pipeline
-                day_account_posts = [
-                    p for p in account_posts
-                    if p.date.strftime("%Y-%m-%d") == date_str and p.link in {p2.link for p2 in day_posts}
-                ]
-                if not day_account_posts:
-                    continue
-                lines.append(f"## {account_key}")
-                lines.append("")
-                for post in day_account_posts:
-                    caption = post.caption
-                    if caption:
-                        lines.append(f"- {caption} — [{post.link}]({post.link})")
-                    else:
-                        lines.append(f"- _No caption_ — [{post.link}]({post.link})")
-                lines.append("")
-
-        output_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        json_file.write_text(json.dumps([{
-            "platform": p.platform,
-            "account": p.account,
-            "caption": p.caption,
-            "link": p.link,
-            "date": p.date.isoformat(),
-            "tags": p.tags,
-        } for p in day_posts], indent=2, ensure_ascii=False), encoding="utf-8")
-        written_files.append(output_file)
-
-    save_seen(seen)
-    log.info(
-        "Summary written to %s (%d new posts from %d accounts, %d total tracked)",
-        written_files[-1] if written_files else "(no new posts)",
-        len(transformed), len(by_account), len(seen),
+def generate_summary(
+    accounts: dict[str, dict],
+    api_key: str | None,
+    cli_backend: str | None,
+    since: datetime,
+    till: datetime,
+) -> None:
+    """Fetch posts from all accounts, run pipeline, and persist state."""
+    # Step 1: Fetch and deduplicate
+    new_posts, seen, posts_per_account = fetch_posts(
+        accounts, api_key, cli_backend, since, till,
     )
-    return written_files
+
+    # Step 2: Run transformer pipeline on new posts
+    transformed = process_pipeline(new_posts, "default")
+
+    # Step 3: Persist state
+    save_seen(seen)
+
+    log.info(
+        "Done! (%d new posts from %d accounts, %d total tracked)",
+        len(transformed),
+        len(posts_per_account),
+        len(seen),
+    )
 
 
 def main() -> None:
@@ -356,6 +343,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    if args.command is None:
+        parser.print_help()
+        sys.exit(1)
+
     if args.command == "add":
         add_account(args.handle, platform=args.platform, limit=args.limit, backend=args.backend)
     else:
@@ -393,7 +384,7 @@ def main() -> None:
             if args.till:
                 till = datetime.strptime(args.till, "%Y-%m-%d").replace(tzinfo=timezone.utc)
 
-        output = generate_summary(
+        generate_summary(
             accounts,
             api_key=args.api_key,
             cli_backend=args.backend,
@@ -401,7 +392,6 @@ def main() -> None:
             till=till,
         )
         save_last_run_date(till)
-        log.info("Done! Summary: %s", output)
 
 
 if __name__ == "__main__":

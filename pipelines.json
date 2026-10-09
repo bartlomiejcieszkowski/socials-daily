@@ -1,8 +1,12 @@
 {
   "pipelines": {
     "default": {
-      "transformers": [],
-      "output": ["markdown", "json"]
+      "transformers": [
+        "filter_no_caption",
+        "html_escape",
+        "write_markdown",
+        "write_sqlite"
+      ]
     }
   }
 }

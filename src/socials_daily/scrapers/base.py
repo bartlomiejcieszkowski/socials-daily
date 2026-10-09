@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 
@@ -14,6 +14,10 @@ class Post:
     caption: str
     link: str
     date: datetime
+    platform: str = ""
+    account: str = ""
+    tags: list[str] = field(default_factory=list)
+    _extra: dict[str, str] = field(default_factory=dict)
 
 
 class Scraper(ABC):
